@@ -1,0 +1,11 @@
+# TODO: Pin version once Jetson environment is verified.
+torch
+
+# TODO: Pin version once Jetson environment is verified.
+transformers
+
+# TODO: Pin version once Jetson environment is verified.
+lerobot
+
+# TODO: Pin version once Jetson environment is verified.
+jtop
