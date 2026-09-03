@@ -216,3 +216,95 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---------------------------------------------------------------------------
+# Project-specific: edge-vla-control-budget-jetson
+#
+# This repository holds code, configs, and measurements ONLY.
+# No model checkpoints, no datasets, no raw recordings -- ever.
+# Keep those on the Jetson's NVMe or in shared team storage and reference
+# them by path from a file in configs/.
+# ---------------------------------------------------------------------------
+
+# Model weights, checkpoints, and compiled engines
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+*.gguf
+*.onnx
+*.engine
+*.plan
+*.trt
+*.tflite
+checkpoints/
+weights/
+# Root-anchored: a `models/` or `data/` package under src/ is source code and
+# must stay tracked. Downloaded artifacts live at the repo root or off-repo.
+/models/
+# TensorRT INT8 calibration caches
+*.cache
+
+# Hugging Face / torch download caches
+.cache/huggingface/
+hf_cache/
+.torch/
+
+# Datasets and demonstrations
+/data/
+datasets/
+demonstrations/
+episodes/
+recordings/
+*.hdf5
+*.h5
+*.lmdb
+*.tfrecord
+*.rlds
+*.parquet
+*.npz
+*.pkl
+
+# Episode recordings and video
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.webm
+*.bag
+*.mcap
+*.gif
+
+# Large or machine-generated logs
+*.log
+logs/
+runs/
+wandb/
+tensorboard/
+events.out.tfevents.*
+nohup.out
+tegrastats*.txt
+jtop*.json
+
+# RoboTwin 2.0 / SAPIEN assets (downloaded, not vendored)
+sim/assets/
+sim/RoboTwin/
+*.usd
+*.usdz
+
+# results/ is tracked, but only for machine-readable measurements.
+# Ignore everything, then re-allow CSV/JSON and the directory marker.
+results/**
+!results/.gitkeep
+!results/**/
+!results/**/*.csv
+!results/**/*.json
+!results/**/*.jsonl
+!results/**/*.md
+
+# Local hardware config -- serial ports, servo offsets, and camera
+# calibration are per-bench and must not be shared between machines.
+hardware/local/
+*.local.yaml
+calibration_local/

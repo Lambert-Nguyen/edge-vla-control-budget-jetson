@@ -1,0 +1,64 @@
+# Python dependencies for edge-vla-control-budget-jetson
+#
+# NOTHING IS PINNED YET. Every version below is a placeholder. The Jetson
+# Orin Nano runs JetPack/L4T with a CUDA build of PyTorch that is NOT on
+# PyPI, so the pins here must be decided by what actually installs and runs
+# on the board -- not by what resolves on a laptop. Once the board image is
+# verified, replace each `>=` with `==` and record the JetPack version, L4T
+# release, CUDA version, and TensorRT version in README.md under Setup.
+#
+# Install order matters on Jetson: install the NVIDIA-provided torch wheel
+# FIRST, then everything else, so pip does not silently pull a CPU-only
+# torch from PyPI over it.
+
+# --- Core inference -----------------------------------------------------
+# TODO(pin): Jetson build only. Install from the NVIDIA wheel index for the
+#            installed JetPack release, not from PyPI. Record the exact
+#            wheel filename here as a comment when pinning.
+torch>=2.0
+# TODO(pin): must match the torch wheel's expected torchvision version
+#            exactly, or the ops registration fails at import.
+torchvision>=0.15
+
+# TODO(pin): pin once the VLA policy's minimum supported version is known;
+#            processor/config classes move between minor releases.
+transformers>=4.40
+
+# --- Robot policy stack -------------------------------------------------
+# TODO(pin): pin to a specific commit, not a release -- lerobot's dataset
+#            and policy APIs are still moving. Record the commit SHA here.
+lerobot
+
+# --- Quantization and compilation ---------------------------------------
+# TODO(pin): TensorRT ships with JetPack. Do NOT install it from PyPI on the
+#            board; pin to the system version and record it here so host-side
+#            engine builds match the Jetson runtime. Engines are not portable
+#            across TensorRT versions.
+# tensorrt
+# TODO(pin): opset version matters more than package version -- record the
+#            opset used for export alongside the pin.
+onnx>=1.15
+onnxruntime>=1.17
+
+# --- Jetson monitoring / power measurement ------------------------------
+# TODO(pin): jetson-stats provides jtop for board power, rail-level current,
+#            and unified-memory use. Jetson-only; guard imports so host-side
+#            code still runs. Pin after confirming it reads the Orin Nano's
+#            INA3221 rails correctly.
+jetson-stats>=4.2
+
+# --- Experiment plumbing ------------------------------------------------
+# TODO(pin): pin all of these together once the first full sweep runs clean.
+pyyaml>=6.0
+numpy>=1.24
+pandas>=2.0
+
+# --- Simulation ---------------------------------------------------------
+# RoboTwin 2.0 and its SAPIEN dependency are installed separately, from
+# source, and are host-side only -- see README.md Setup. Deliberately not
+# listed here so that `pip install -r requirements.txt` stays valid on the
+# Jetson.
+
+# --- Analysis / figures (host-side) -------------------------------------
+# TODO(pin): pin when the report figures are finalized.
+matplotlib>=3.8
