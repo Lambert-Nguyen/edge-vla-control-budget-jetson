@@ -216,3 +216,28 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Model artifacts and checkpoints (do not commit)
+*.pt
+*.pth
+*.safetensors
+*.engine
+*.onnx
+*.plan
+
+# Datasets and raw data (do not commit)
+data/
+dataset/
+datasets/
+raw_data/
+recordings/
+episodes/
+
+# Media and large logs (do not commit)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.log.*
+logs/
