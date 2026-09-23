@@ -8,6 +8,23 @@
 
 ---
 
+## New to the project? Start here
+
+[docs/guides/](docs/guides/README.md) walks from an empty desk to a policy
+running on the arm, in the order to do things. It assumes no prior experience
+with embedded boards, servos, or LeRobot.
+
+- [Hardware purchase guide](docs/guides/01-hardware-purchase-guide.md). What to buy, before anything else.
+- [Verify an existing setup](docs/guides/02a-verify-existing-setup.md). Auditing `sjsujetson-36`, which arrived already provisioned. Start here.
+- [Jetson setup from scratch](docs/guides/02-jetson-setup.md). Flashing and provisioning, kept as reference.
+- [Python environments](docs/guides/03-python-environments.md). The Jetson torch wheel problem and how to avoid it.
+- [Arm bring-up](docs/guides/04-arm-bringup.md). Servo IDs, calibration, teleoperation, safety.
+- [First benchmark](docs/guides/05-first-benchmark.md). The measurement harness.
+- [Model and simulation](docs/guides/06-model-and-simulation.md). Hy-Embodied-0.5-VLA and RoboTwin 2.0.
+- [Troubleshooting](docs/guides/07-troubleshooting.md)
+
+---
+
 ## Abstract
 
 > _TODO: Write the abstract once the first round of latency and success-rate
@@ -51,7 +68,7 @@ This project characterizes that trade-off space and then optimizes against it:
 | Teleoperation | SO-101 leader arm for demonstration collection |
 | Cameras | USB RGB cameras — one wrist-mounted, one static third-person |
 | Power instrumentation | On-board INA3221 rails via `tegrastats` / `jetson-stats` |
-| Host workstation | x86-64 + discrete NVIDIA GPU, for RoboTwin 2.0 sim and reference (unquantized) baselines |
+| Host workstation | Linux, NVIDIA GPU with >= 24 GB VRAM (RTX 4090 / 3090 / A100), 64 GB RAM, 1 TB NVMe. Runs RoboTwin 2.0, the unquantized reference baseline, and the SO-101 fine-tune. See [the workstation spec](docs/guides/06-model-and-simulation.md#what-the-workstation-actually-needs), which also covers renting one |
 
 Jetson software target: JetPack 6.x (L4T r36.x), CUDA 12.x, TensorRT 10.x.
 Exact versions are pinned in [requirements.txt](requirements.txt) once the
@@ -59,14 +76,32 @@ board image is verified.
 
 ## Setup
 
+Step-by-step instructions live in [docs/guides/](docs/guides/README.md). The
+sections below record what was actually installed on our board, which is what
+makes a measurement reproducible.
+
 > _TODO: Fill in after the Jetson is flashed and the environment is verified
 > end to end. Each section should be reproducible from a fresh board._
 
 ### 1. Jetson Orin Nano
 
-> _TODO: JetPack flashing, power mode (`nvpmodel`) and clock settings, swap
-> and zram configuration, NVMe mount, and the CUDA/cuDNN/TensorRT versions the
-> measurements were taken against._
+Board: `sjsujetson-36`, provisioned by the department. Reach it with
+`ssh sjsujetson@sjsujetson-36.local`.
+
+It arrived already set up, so do not flash it, rename it, or update its
+container. Audit it instead with `bash hardware/audit_board.sh` and see
+[Verify an existing setup](docs/guides/02a-verify-existing-setup.md).
+
+Power modes available, as shipped in mode 2:
+
+| Mode | Name |
+| --- | --- |
+| 0 | 15W |
+| 1 | 25W |
+| 2 | MAXN SUPER (default) |
+
+> _TODO: record the audit's JetPack/L4T, CUDA, cuDNN and TensorRT versions
+> here, and the power mode the main sweep is taken in once the team agrees._
 
 ### 2. Python environment
 
@@ -101,6 +136,7 @@ board image is verified.
 ├── configs/        YAML experiment configs for the sweep
 ├── results/        Measurement outputs (CSV/JSON only)
 ├── docs/           Reports, meeting notes, paper drafts
+│   └── guides/     Step-by-step setup and bring-up guides
 ├── requirements.txt
 ├── CONTRIBUTING.md
 └── .github/        Issue and pull request templates
