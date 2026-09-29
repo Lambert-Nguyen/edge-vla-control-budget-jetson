@@ -12,12 +12,15 @@
   inference and benchmarks, and a CPU env (LeRobot 0.5.1) for the arm. The GPU
   check reports 14 checks, 0 failed, and 2 warnings, both understood and
   documented.
-- **The measurement harness now records board power**, alongside latency,
-  memory, power mode, clock state and temperature, in every result. Two of the
-  three sanity checks on the harness are done. The third needs sudo.
-- **Our first measurement produced a methodology finding.** With clocks
-  unpinned, the GPU governor hides compute cost as power. Latency stayed flat
-  across a 36× increase in pixels while board power rose from 6.5 W to 14.9 W.
+- **The benchmark harness is done.** It records board power alongside
+  latency, memory, power mode, clock state and temperature in every result,
+  and all three sanity checks pass.
+- **Our first measurements changed how we will measure.** With the default
+  clock scaling, latency stayed flat across a 36× increase in pixels while
+  board power rose from 6.5 W to 14.9 W. With the clocks locked, latency
+  follows the work, the worst case at 224 px drops from 4.9 to 1.4 ms, and
+  large images take about a quarter less time. We will lock the clocks for
+  every experiment.
 - **The arm software is staged and pre-tested.** This caught a bug that would
   have stopped the arm's first test script on day one.
 - **The arm is not ordered.** The Hiwonder kit we planned to buy turns out to use
@@ -32,7 +35,7 @@
 | Board audit | Done | Re-audited 2026-09-28, no system-level changes |
 | Python environments | **Done** | Both envs built and verified, versions pinned |
 | Arm software | Staged | Tools installed and tested without hardware. Hardware steps wait for the arm |
-| Benchmark harness | Mostly done | Power sampling added. Warmup check passed, resolution check confounded by clock scaling, power-mode check needs sudo |
+| Benchmark harness | **Done** | Power sampling added. All three sanity checks pass with the clocks locked |
 | Model and simulation | Not started | Workstation work, needs a ≥ 24 GB GPU |
 
 ## 2. Board state (`sjsujetson-36`)
@@ -64,7 +67,7 @@ Two things differed from what we expected on a provisioned board:
 | torch | 2.8.0, CUDA 12.6, Jetson wheel from `pypi.jetson-ai-lab.io/jp6/cu126` | 2.10.0+cpu (by design) |
 | LeRobot | 0.4.4 `[feetech]` | 0.5.1 `[feetech]` |
 | Other pins | numpy 1.26.4, opencv-python-headless 4.11.0.86, pygame 2.6.1 | numpy 2.2.6 |
-| Verified by | `hardware/hello_jetson.py`: 14 checks, 0 failed, 2 warnings. FP16 matmul 4096³ in 27.5 ms (5.0 TFLOP/s, clocks unpinned) | `lerobot-info`, `pip check` clean, Feetech SDK imports |
+| Verified by | `hardware/hello_jetson.py`: 14 checks, 0 failed, 2 warnings. FP16 matmul 4096³ in 27.5 ms (5.0 TFLOP/s, default clocks) | `lerobot-info`, `pip check` clean, Feetech SDK imports |
 
 Where this board differed from your recipe:
 
@@ -95,46 +98,76 @@ Every record carries p50/p90/p99 latency, peak memory, mean and peak power per
 rail, energy per inference, power mode, clock state, GPU clock range, peak
 temperature, and the git commit. The model is still the stand-in 4-layer
 convnet, so these numbers validate the harness and are **not a VLA baseline**.
-All 13 records are committed in `results/` against a clean commit (`3729b4f`).
 
-Conditions: MAXN_SUPER, clocks unpinned (no sudo), and the desktop session
-running at a load average of about 2.1 on 6 cores.
+All 25 records are committed in `results/` against clean commits. The first 13
+ran with the board's default clock scaling. The other 12 ran later on
+2026-09-28 with the clocks locked (`jetson_clocks`), through
+`benchmarks/sanity_checks.sh`, which switches the power mode for each check
+and then restores the board. The desktop session was running throughout, at a
+load average of about 1.3 to 2.1 on 6 cores.
 
 | Check | Result | Verdict |
 | --- | --- | --- |
 | Warmup matters | p99 397.5 ms with no warmup, against 5.7 ms with 20 warmup iterations | Passes |
 | Sampler overhead | p99 4.90 ms with power sampling, 4.98 ms without, over 3000 iterations | No measurable perturbation |
-| Latency rises with resolution | Flat from 112 to 672 px (table below) | Confounded by DVFS |
-| Power mode changes the answer | Not run | Needs sudo |
+| Latency rises with resolution | Clocks locked: flat near 1.15 ms up to 336 px, then 2.8, 9.9 and 22.7 ms at 672, 1344 and 2048 px. Default scaling stayed flat to 672 px | Passes with clocks locked |
+| Power mode changes the answer | At 1344 px: 12.6 ms in 15 W, 10.3 ms in 25 W, 9.9 ms in MAXN SUPER. Each record names its own mode | Passes |
 
-**The finding from the resolution check.** With `jetson_clocks` off, the GPU governor spends
-the extra work as clock and power, so latency does not move:
+**The resolution check, default clock scaling against locked clocks** (MAXN
+SUPER, 1000 to 2000 iterations per point; locked, the GPU ran at 1020 MHz at
+every size):
 
-| Resolution | p50 (ms) | p99 (ms) | Board power, VDD_IN (W) | GPU clock (MHz) | Energy / inference (mJ) |
+| Resolution | p50 default (ms) | p50 locked (ms) | p99 default (ms) | p99 locked (ms) | VDD_IN default (W) | VDD_IN locked (W) | GPU clock default (MHz) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 112 | 2.57 | 1.14 | 6.45 | 1.33 | 6.49 | 7.44 | 306 – 408 |
+| 224 | 2.52 | 1.17 | 5.62 | 1.46 | 7.13 | 8.50 | 408 – 714 |
+| 336 | 2.06 | 1.16 | 5.35 | 1.36 | 8.87 | 10.75 | 408 – 918 |
+| 672 | 2.53 | 2.77 | 5.94 | 3.16 | 14.87 | 14.25 | 1020 |
+| 1344 | 13.82 | 9.91 | 16.29 | 10.12 | 16.23 | 15.47 | 1020 |
+| 2048 | 30.74 | 22.73 | 32.34 | 27.71 | 16.36 | 15.60 | 1020 |
+
+Left to itself, the governor answers extra work with higher clocks and more
+power, so latency stayed flat from 112 to 672 px while board power rose from
+6.5 W to 14.9 W. With the clocks locked, latency follows the work. Up to 336 px
+it holds at the stand-in model's fixed overhead of about 1.15 ms, and above that
+it climbs with the pixel count: 2.29 times longer from 1344 to 2048 px for 2.32
+times the pixels.
+
+Locking also removed most of the jitter. At 224 px, over 3000 steps each, the
+worst 1% went from 4.90 ms to 1.38 ms. Large images took about a quarter less
+time: 13.8 to 9.9 ms at 1344 px, and 30.7 to 22.7 ms at 2048 px. That happened
+although the GPU ran at 1020 MHz in both cases, so another clock was scaling,
+most likely the memory clock. `jetson_clocks` locks it too, but we can't read
+it without root. The one near-tie is 672 px, where the medians are 2.5 and
+2.8 ms but the worst case halves from 5.9 to 3.2 ms. Locking costs 1 to 2 W
+more at small sizes.
+
+**Power modes, clocks locked:**
+
+| Mode | CPU / GPU clock (MHz) | 224 px p50 / p99 (ms) | 1344 px p50 / p99 (ms) | Power at 1344 px (W) | Energy per step at 1344 px (mJ) |
 | --- | --- | --- | --- | --- | --- |
-| 112 | 2.57 | 6.45 | 6.49 | 306 – 408 | 23 |
-| 224 | 2.52 | 5.62 | 7.13 | 408 – 714 | 23 |
-| 336 | 2.06 | 5.35 | 8.87 | 408 – 918 | 24 |
-| 672 | 2.53 | 5.94 | 14.87 | 1020 | 54 |
-| 1344 | 13.82 | 16.29 | 16.23 | 1020 | 212 |
-| 2048 | 30.74 | 32.34 | 16.36 | 1020 | 491 |
+| 15 W (mode 0) | 1497 / 612 | 1.34 / 1.57 | 12.60 / 16.76 | 12.2 | 155 |
+| 25 W (mode 1) | 1344 / 918 | 1.44 / 1.80 | 10.30 / 14.01 | 14.2 | 148 |
+| MAXN SUPER (mode 2) | 1728 / 1020 | 1.15 / 1.38 | 9.91 / 13.05 | 15.4 | 154 |
 
-Only after the clock saturates at 1020 MHz does latency follow the pixel
-count: 1344 → 2048 px gives a 0.45 latency ratio against 0.43 of the pixels,
-which also confirms the harness times execution rather than queueing. Up to
-672 px the stand-in model is bound by a fixed ~2 ms of launch and sync
-overhead, and its p50-to-p99 spread (≈ 2.5 vs 6 ms) persists even with the GPU
-at 1020 MHz. That points to the CPU side, meaning the CPU governor and the
-desktop load. Pinned clocks and a quiet board should show how much of it is
-real.
+- Lower modes trade speed for power at about the same energy per step,
+  roughly 150 mJ at 1344 px.
+- From MAXN SUPER to 15 W the GPU clock drops 40% but latency rises only 27%,
+  so this workload isn't limited by the GPU clock alone.
+- The 25 W mode has the slowest CPU (1344 MHz, against 1497 in 15 W), and it
+  was the slowest mode at small sizes, where per-step CPU overhead dominates.
+  That matters for a pipeline with CPU-side preprocessing.
+- No run throttled. The chip peaked at 61.5 °C.
 
 What this means for the project:
 
-- A latency number without its power and clock columns can be misleading on
-  this board. The harness now always records them.
-- The main sweep should run with clocks pinned. The choice between mode 1
-  (25 W, capped and more deterministic) and mode 2 (MAXN SUPER, fastest but
-  able to throttle) is still open.
+- Every experiment runs with the clocks locked. Default scaling adds jitter
+  and understates the board.
+- We still need to choose the power mode for the main sweep. MAXN SUPER with
+  locked clocks was fastest, with no throttling in these short runs, though
+  longer runs of the real model need watching; the harness flags a locked
+  clock that drops. 15 W gives about the same energy per step, which fits a
+  battery-powered story.
 - Energy per inference, not just latency, belongs in the trade-off curves.
 
 ## 5. Decision needed: is the Hiwonder SO-ARM101 kit right for this project?
@@ -195,25 +228,26 @@ in ways that matter for this project.
     `apt update`.
   - Adding the `sjsujetson` user to `dialout` so LeRobot can open the arm's
     serial port.
-  - Changing `nvpmodel` and `jetson_clocks` during benchmark runs, restored
-    afterwards.
+  - Switching power modes and locking the clocks during benchmark runs. We
+    did this once already, on the evening of 2026-09-28, for the harness
+    checks, and put the board back to MAXN SUPER with clocks unlocked
+    afterwards. Is it OK to keep doing it for experiments?
 - Workstation access: a GPU with at least 24 GB for RoboTwin 2.0, the FP16
   baseline and the fine-tune. That could be a lab machine, the SJSU cluster,
   or renting. RunPod lists an RTX 4090 at $0.34 per hour on its Community
   Cloud (checked 2026-09-28).
 
 **Team decisions:** the target control rate (30 Hz assumed), and the primary
-power mode for the sweep.
+power mode for the sweep. The data is in section 4.
 
-**After your OK**, we will apply the admin changes above, about 15 minutes of
-work, then run the power-mode check and re-run the resolution check with
-clocks pinned.
+**After your OK**, we will apply the two installs above, about 10 minutes of
+work.
 
 ## 7. Next steps (proposed, next two weeks)
 
 1. Order the arm once section 5 is settled.
-2. Finish the harness checks with pinned clocks, and pick the sweep power
-   mode.
+2. Pick the power mode for the main experiments, using the data in
+   section 4.
 3. **A small VLA end to end on the Jetson**: SmolVLA through the harness with
    power, on recorded frames first and on the kit's cameras once they arrive.
    This shakes out the plumbing before Hy-VLA, and needs the `smolvla` extra
@@ -228,7 +262,9 @@ clocks pinned.
 
 ## Appendix A: fixes landed in the repo
 
-Branch `feat/jetson-bringup`, awaiting teammate review:
+Merged into `main` on 2026-09-28 as pull request #3, with every commit kept.
+The locked-clock records and the script that ran them are on branch
+`exp/pinned-clock-checks`, not yet reviewed.
 
 - `hello_latency.py` crashed after writing its record whenever `--out` was
   given.
@@ -247,7 +283,12 @@ Branch `feat/jetson-bringup`, awaiting teammate review:
   venv also has `pip.conf` and `constraints.txt`.
 - The `vla` and `arm` aliases appended to `~/.bashrc`, 7 lines.
 - `~/so101_unified_teleop.py`, identical to the course repo (sha256 `fad46f13…`).
-- `~/board-audit-2026-09-28.txt`.
+- `~/board-audit-2026-09-28.txt`, and the log of the harness checks,
+  `~/sanity-checks-20260928-214925.log`.
+- GitHub's CLI, `gh` 2.101.0, in `~/.local/bin`, used to open our pull
+  requests.
 
-Nothing else changed. No sudo, no apt, no power-mode change, no container
-touched.
+Nothing else changed. Sudo was used once, on the evening of 2026-09-28, for
+the harness checks, and only for `nvpmodel` and `jetson_clocks`. The board went
+back to MAXN SUPER with clocks unlocked, and we checked it afterwards. No apt,
+and no containers touched.

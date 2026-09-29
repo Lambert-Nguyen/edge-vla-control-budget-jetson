@@ -146,6 +146,11 @@ Put the board back where you found it when you are done. Ours ships in mode 2
 with `jetson_clocks` off. `nvpmodel -m 2` alone does not unpin the clocks, so
 `--restore` (or a reboot) is the part that undoes it.
 
+`bash benchmarks/sanity_checks.sh` does all of this in one go. It runs this
+check in all three modes, repeats check 2 with the clocks pinned, and restores
+the board on exit, even after Ctrl-C or a failure. It asks for the sudo password
+once, and `--dry-run` tries it without sudo.
+
 ## Power modes on our board
 
 `sjsujetson-36` has three:
