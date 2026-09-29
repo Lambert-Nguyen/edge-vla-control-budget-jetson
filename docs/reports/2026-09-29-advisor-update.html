@@ -1,0 +1,698 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Edge-VLA Advisor Update</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one column read like a lab report. A datasheet strip under the title, a 46rem measure, and wide tables scrolling inside their own box. */
+:root {
+  --bg: #f4f6f8;
+  --paper: #ffffff;
+  --ink: #121417;
+  --ink-2: #4b5261;
+  --muted: #646d7c;
+  --rule: #dce1e7;
+  --rule-strong: #c2c9d3;
+  --accent: #1d5fb8;
+  --accent-wash: #e8eff9;
+  --series: #2a78d6;
+  --series-wash: rgba(42, 120, 214, 0.10);
+  --series-band: rgba(42, 120, 214, 0.16);
+  --series-2: #8a919e;
+  --series-2-band: rgba(138, 145, 158, 0.18);
+  --code: #e9edf2;
+  --good: #0ca30c;
+  --warn: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --neutral: #98a0ad;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --step-0: 1rem;
+  --step-1: 1.1875rem;
+  --step-2: 1.4375rem;
+  --step-3: 2.125rem;
+  --small: 0.875rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216;
+    --paper: #161a20;
+    --ink: #eef1f5;
+    --ink-2: #b8c0cc;
+    --muted: #939cab;
+    --rule: #272d36;
+    --rule-strong: #3b434f;
+    --accent: #7cb0f6;
+    --accent-wash: #15253b;
+    --series: #3987e5;
+    --series-wash: rgba(57, 135, 229, 0.14);
+    --series-band: rgba(57, 135, 229, 0.22);
+    --series-2: #858d99;
+    --series-2-band: rgba(133, 141, 153, 0.20);
+    --code: #1e242c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216;
+  --paper: #161a20;
+  --ink: #eef1f5;
+  --ink-2: #b8c0cc;
+  --muted: #939cab;
+  --rule: #272d36;
+  --rule-strong: #3b434f;
+  --accent: #7cb0f6;
+  --accent-wash: #15253b;
+  --series: #3987e5;
+  --series-wash: rgba(57, 135, 229, 0.14);
+  --series-band: rgba(57, 135, 229, 0.22);
+  --series-2: #858d99;
+  --series-2-band: rgba(133, 141, 153, 0.20);
+  --code: #1e242c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 50rem;
+  margin: 0 auto;
+  padding-inline: 20px;
+  padding-block: 40px 72px;
+  display: grid;
+  gap: 44px;
+}
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+code { background: var(--code); padding: 0.08em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: var(--step-3); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: var(--step-2); font-weight: 600; }
+h3 { font-size: var(--step-1); font-weight: 600; }
+p, ul, ol { margin: 0; }
+section { display: grid; gap: 16px; min-width: 0; }
+section > p, section li { max-width: 46rem; }
+ul, ol { padding-left: 1.25rem; display: grid; gap: 8px; }
+li::marker { color: var(--muted); }
+strong { font-weight: 600; }
+
+/* Masthead */
+.masthead { display: grid; gap: 14px; }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted);
+}
+.project { color: var(--ink-2); max-width: 44rem; }
+.meta {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 10px 24px; margin: 0; padding-top: 14px; border-top: 1px solid var(--rule);
+}
+.meta div { min-width: 0; }
+.meta dt { font-size: 0.74rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.meta dd { margin: 0; font-size: var(--small); }
+.spec {
+  font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-2);
+  display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 14px;
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 6px;
+}
+.spec span { white-space: nowrap; }
+.spec b { font-weight: 500; color: var(--ink); }
+
+/* Decision callout: the one thing this meeting has to settle */
+.decision {
+  display: grid; gap: 8px; padding: 18px 20px;
+  background: var(--accent-wash); border: 1px solid var(--rule-strong); border-radius: 8px;
+}
+.decision-label {
+  font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); color: var(--ink);
+}
+
+/* Tables */
+.table-scroll { overflow-x: auto; background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; font-size: var(--small); }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--rule); }
+tr:last-child td { border-bottom: 0; }
+thead th {
+  font-weight: 600; font-size: 0.76rem; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--muted); background: var(--paper);
+}
+tbody th { font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+caption { caption-side: bottom; text-align: left; padding: 8px 12px; color: var(--muted); font-size: 0.8rem; }
+table.wide { min-width: 38rem; }
+
+/* Status pills: shape and label carry the state, color only supports them */
+.pill { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; font-weight: 500; }
+.mark { width: 10px; height: 10px; flex: none; display: inline-block; }
+.mark.done { background: var(--good); border-radius: 50%; }
+.mark.part { border-radius: 50%; border: 2px solid var(--warn); background: linear-gradient(90deg, var(--warn) 50%, transparent 50%); }
+.mark.open { background: var(--serious); transform: rotate(45deg); width: 9px; height: 9px; }
+.mark.todo { border-radius: 50%; border: 2px solid var(--neutral); }
+
+/* Figure */
+figure { margin: 0; display: grid; gap: 10px; position: relative; min-width: 0; }
+.chart-card { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; overflow-x: auto; padding: 12px 8px 4px; }
+svg.chart { display: block; width: 100%; min-width: 520px; height: auto; font-family: var(--font-body); }
+figcaption { color: var(--muted); font-size: 0.82rem; max-width: 46rem; }
+.chart .grid { stroke: var(--rule); stroke-width: 1; }
+.chart .baseline { stroke: var(--rule-strong); stroke-width: 1; }
+.chart .tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .panel-title { fill: var(--ink-2); font-size: 12.5px; font-weight: 500; }
+.chart .axis-title { fill: var(--muted); font-size: 11.5px; }
+.chart .line { fill: none; stroke: var(--series); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .area { fill: var(--series-wash); }
+.chart .band { fill: var(--series-band); }
+.chart .dot { fill: var(--series); stroke: var(--paper); stroke-width: 2; }
+.chart .dot.on { r: 5.5; }
+.chart .dlabel { fill: var(--ink); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.chart .annot { stroke: var(--muted); stroke-width: 1; }
+.chart .annot-label { fill: var(--ink-2); font-size: 11.5px; font-style: italic; }
+.chart .crosshair { stroke: var(--ink-2); stroke-width: 1; }
+.chart .line-default { stroke: var(--series-2); }
+.chart .dot-default { fill: var(--series-2); }
+.chart .band-default { fill: var(--series-2-band); }
+.chart .key { stroke-width: 2.5; stroke-linecap: round; }
+.chart .key-locked { stroke: var(--series); }
+.chart .key-default { stroke: var(--series-2); }
+.chart .legend-text { fill: var(--ink-2); font-size: 12px; }
+.tip-key.default { background: var(--series-2); }
+.tip-group { font-size: 0.74rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.chart .hit { fill: transparent; cursor: crosshair; }
+.chart .hit:focus { outline: none; }
+.chart .hit:focus-visible { stroke: var(--accent); stroke-width: 2; }
+.tip {
+  position: absolute; top: 44px; left: 0; z-index: 2; pointer-events: none;
+  background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 6px;
+  padding: 10px 12px; font-size: 0.8rem; display: grid; gap: 3px; min-width: 11rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+.tip-head { font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.tip-row { display: grid; grid-template-columns: 14px auto 1fr; align-items: center; gap: 8px; color: var(--ink-2); }
+.tip-row strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.tip-key { width: 12px; height: 2px; background: var(--series); border-radius: 1px; }
+
+/* Findings list after the chart */
+.takeaways { display: grid; gap: 8px; }
+
+/* Question list for Dr. Liu */
+.questions { counter-reset: q; list-style: none; padding: 0; display: grid; gap: 12px; }
+.questions li { counter-increment: q; display: grid; grid-template-columns: 2rem 1fr; gap: 4px; }
+.questions li::before {
+  content: "Q" counter(q); font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent);
+  padding-top: 0.2rem;
+}
+
+.evidence { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 14px; }
+.evidence > div { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.evidence h3 { font-size: 1rem; }
+.evidence ul { font-size: var(--small); }
+
+.muted { color: var(--muted); }
+.fine { font-size: var(--small); color: var(--ink-2); }
+.appendix { display: grid; gap: 12px; padding-top: 20px; border-top: 1px solid var(--rule); }
+.appendix h2 { font-size: var(--step-1); }
+.appendix ul { font-size: var(--small); }
+footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 16px; }
+
+@media (max-width: 480px) {
+  .wrap { padding-block: 28px 56px; gap: 36px; }
+  h1 { font-size: 1.75rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+<main class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">CMPE 295A · Advisor update · Meeting 2026-09-29</p>
+  <h1>Jetson bring-up and the arm decision</h1>
+  <p class="project">Real-Time Control Budgets for Vision-Language-Action Manipulation Policies on the NVIDIA Jetson Orin Nano</p>
+  <dl class="meta">
+    <div><dt>Team</dt><dd>Lam Nguyen, Vi Thi Tuong Nguyen, James Pham</dd></div>
+    <div><dt>Advisor</dt><dd>Dr. Kaikai Liu</dd></div>
+    <div><dt>Work covered</dt><dd>2026-09-28, on board <span class="mono">sjsujetson-36</span></dd></div>
+  </dl>
+  <p class="spec" aria-label="Board specification">
+    <span><b>Orin Nano 8 GB</b> Super dev kit</span>
+    <span>JetPack <b>6.2</b> · L4T <b>R36.4.3</b></span>
+    <span>CUDA <b>12.6</b> · cuDNN <b>9.3.0</b> · TensorRT <b>10.3.0</b></span>
+    <span>nvpmodel <b>MAXN_SUPER</b> · jetson_clocks <b>off</b></span>
+  </p>
+</header>
+
+<aside class="decision" aria-labelledby="decision-label">
+  <p class="decision-label" id="decision-label">Decision needed in this meeting</p>
+  <p>Should we buy the Hiwonder SO-ARM101 kit? Its servos are Hiwonder's own HX-30HM and HX-10HM, not the Feetech STS3215 that LeRobot and your teleop helper are built around. Hiwonder says they are protocol-compatible, but upstream LeRobot has never accepted support for them. Details and alternatives are in <a href="#arm">section 5</a>.</p>
+</aside>
+
+<section aria-labelledby="summary">
+  <h2 id="summary">Summary</h2>
+  <ul>
+    <li><strong>The Jetson software stack is up and verified.</strong> Both LeRobot environments from the course recipe are built: a CUDA env (torch 2.8.0, LeRobot 0.4.4) for inference and benchmarks, and a CPU env (LeRobot 0.5.1) for the arm. The GPU check reports 14 checks, 0 failed, and 2 known warnings.</li>
+    <li><strong>The benchmark harness is done.</strong> It records board power alongside latency, memory, power mode, clock state and temperature in every result, and all three sanity checks pass.</li>
+    <li><strong>The first measurements changed how we will measure.</strong> With the default clock scaling, latency stayed flat across a 36× increase in pixels while board power rose from 6.5 W to 14.9 W, because the governor spends extra work as clock and power. With the clocks locked, latency follows the work, the worst case at 224 px drops from 4.9 to 1.4 ms, and large images take about a quarter less time. We will lock the clocks for every experiment.</li>
+    <li><strong>The arm software is staged and pre-tested.</strong> Testing without hardware caught a bug that would have stopped the arm's first test script on day one.</li>
+    <li><strong>The arm is not ordered yet.</strong> We need your answer on the Hiwonder kit first.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="status">
+  <h2 id="status">1. Status</h2>
+  <div class="table-scroll">
+    <table class="wide">
+      <thead><tr><th scope="col">Workstream</th><th scope="col">Status</th><th scope="col">Notes</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Arm purchase</th><td><span class="pill"><span class="mark open" aria-hidden="true"></span>Open</span></td><td>Not ordered. Hiwonder question in section 5</td></tr>
+        <tr><th scope="row">Board audit</th><td><span class="pill"><span class="mark done" aria-hidden="true"></span>Done</span></td><td>Re-audited 2026-09-28. No system-level changes</td></tr>
+        <tr><th scope="row">Python environments</th><td><span class="pill"><span class="mark done" aria-hidden="true"></span>Done</span></td><td>Both envs built and verified, versions pinned</td></tr>
+        <tr><th scope="row">Arm software</th><td><span class="pill"><span class="mark part" aria-hidden="true"></span>Staged</span></td><td>Tools installed and tested without hardware. Hardware steps wait for the arm</td></tr>
+        <tr><th scope="row">Benchmark harness</th><td><span class="pill"><span class="mark done" aria-hidden="true"></span>Done</span></td><td>Power sampling added. All three sanity checks pass with the clocks locked</td></tr>
+        <tr><th scope="row">Model and simulation</th><td><span class="pill"><span class="mark todo" aria-hidden="true"></span>Not started</span></td><td>Workstation work. Needs a GPU with at least 24 GB</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="board">
+  <h2 id="board">2. Board state</h2>
+  <div class="table-scroll">
+    <table class="wide">
+      <thead><tr><th scope="col">Component</th><th scope="col">Version or state</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Module</th><td>Orin Nano 8 GB, Engineering Reference Developer Kit Super</td></tr>
+        <tr><th scope="row">JetPack / L4T</th><td>6.2 / R36.4.3, Ubuntu 22.04.5, kernel 5.15.148-tegra</td></tr>
+        <tr><th scope="row">CUDA / cuDNN / TensorRT</th><td>12.6.68 / 9.3.0.75 / 10.3.0.30, runtime only</td></tr>
+        <tr><th scope="row">Memory / storage</th><td>7.4 GiB unified with zram swap / 465.8 GB NVMe, 322 GB free</td></tr>
+        <tr><th scope="row">Power mode</th><td>MAXN_SUPER (mode 2), <code>jetson_clocks</code> off, as shipped</td></tr>
+        <tr><th scope="row">Monitoring</th><td>jtop 4.3.2 installed. INA3221 power rails readable without root</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Two things differed from what we expected on a provisioned board:</p>
+  <ul>
+    <li><strong>The LeRobot environments were not preinstalled.</strong> We built both following your recipe for <span class="mono">cmpe-jetson</span>.</li>
+    <li><strong>TensorRT's Python bindings are missing.</strong> The runtime is installed, but <code>python3-libnvinfer</code> and <code>trtexec</code> (<code>libnvinfer-bin</code>) are not, so <code>import tensorrt</code> fails. Both are in the apt cache at the matching 10.3.0.30. A dry run shows 2 new packages, 0 upgrades and 0 removals, and needs no <code>apt update</code>. We have not run it, because it needs sudo.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="envs">
+  <h2 id="envs">3. Python environments</h2>
+  <div class="table-scroll">
+    <table class="wide">
+      <thead><tr><th scope="col"></th><th scope="col"><span class="mono">~/lerobot-py310-cuda</span> (alias <span class="mono">vla</span>)</th><th scope="col"><span class="mono">~/lerobot-py312</span> (alias <span class="mono">arm</span>)</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Use</th><td>Inference, benchmarks</td><td>Teleop, calibration, recording</td></tr>
+        <tr><th scope="row">Python</th><td>3.10.12 (system), with system site packages</td><td>3.12.14 (uv-managed)</td></tr>
+        <tr><th scope="row">torch</th><td>2.8.0 with CUDA 12.6, Jetson wheel from <span class="mono">pypi.jetson-ai-lab.io/jp6/cu126</span></td><td>2.10.0+cpu, CPU-only by design</td></tr>
+        <tr><th scope="row">LeRobot</th><td>0.4.4 <span class="mono">[feetech]</span></td><td>0.5.1 <span class="mono">[feetech]</span></td></tr>
+        <tr><th scope="row">Other pins</th><td>numpy 1.26.4, opencv-python-headless 4.11.0.86, pygame 2.6.1</td><td>numpy 2.2.6</td></tr>
+        <tr><th scope="row">Verified by</th><td><span class="mono">hello_jetson.py</span>: 14 checks, 0 failed. FP16 matmul 4096³ in 27.5 ms (5.0 TFLOP/s, default clocks)</td><td><span class="mono">lerobot-info</span>, clean <span class="mono">pip check</span>, Feetech SDK imports</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Where this board differed from your recipe:</p>
+  <ul>
+    <li><strong>User-site packages leak into the CUDA env.</strong> An earlier <code>pip install --user</code> left numpy 2.2.6, tensorflow and protobuf 7 in <span class="mono">~/.local</span>, which sits on <span class="mono">sys.path</span> ahead of the system packages. The <span class="mono">vla</span> alias now sets <code>PYTHONNOUSERSITE=1</code>.</li>
+    <li><strong>CUDA <code>torch.linalg</code> fails</strong> with an undefined cuSOLVER symbol. The torch 2.8.0 wheel expects a newer cuSOLVER than JetPack 6.2's 11.6.4. Matmul, convolution and attention are unaffected, so matrix decompositions will run on the CPU.</li>
+    <li><strong>The current torch wheel no longer links cuDSS.</strong> We kept the cuDSS step to match your recipe. It is isolated and harmless.</li>
+    <li><strong>A guard against the CPU-torch accident.</strong> A constraints file inside the CUDA venv pins torch, torchvision, torchaudio and numpy&lt;2, so a <code>pip install</code> that would replace the Jetson wheel now fails loudly.</li>
+  </ul>
+  <p class="fine">Exact package sets are committed in <span class="mono">hardware/envs/</span>, and <span class="mono">requirements.txt</span> is pinned, including the torch wheel's sha256.</p>
+</section>
+
+<section aria-labelledby="harness">
+  <h2 id="harness">4. Measurement harness and first measurements</h2>
+  <p><span class="mono">benchmarks/hello_latency.py</span> now samples the INA3221 rails, the GPU clock and the junction temperature in a thread that covers exactly the timed loop. It reads sysfs directly, so it needs no root and no jtop, and it still runs on the workstation. Every record carries p50, p90 and p99 latency, peak memory, mean and peak power per rail, energy per inference, power mode, clock state, GPU clock range, peak temperature and the git commit.</p>
+  <p>The model is still the stand-in 4-layer convnet, so these numbers validate the harness. <strong>They are not a VLA baseline.</strong> All 25 records are committed in <span class="mono">results/</span> against clean commits. The first 13 ran with the board's default clock scaling. The other 12 ran later on 2026-09-28 with the clocks locked, through a script that switches the power mode for each check and then restores the board. The desktop session was running throughout, at a load average of about 1.3 to 2.1 on 6 cores.</p>
+  <div class="table-scroll">
+    <table class="wide">
+      <thead><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Verdict</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Warmup matters</th><td>p99 397.5 ms with no warmup, against 5.7 ms with 20 warmup iterations</td><td><span class="pill"><span class="mark done" aria-hidden="true"></span>Passes</span></td></tr>
+        <tr><th scope="row">Sampler overhead</th><td>p99 4.90 ms with power sampling, 4.98 ms without, over 3000 iterations</td><td><span class="pill"><span class="mark done" aria-hidden="true"></span>No effect</span></td></tr>
+        <tr><th scope="row">Latency rises with resolution</th><td>With clocks locked: flat near 1.15 ms up to 336 px, then 2.8, 9.9 and 22.7 ms at 672, 1344 and 2048 px. With default scaling it stayed flat up to 672 px</td><td><span class="pill"><span class="mark done" aria-hidden="true"></span>Passes, clocks locked</span></td></tr>
+        <tr><th scope="row">Power mode changes the answer</th><td>At 1344 px: 12.6 ms in 15 W, 10.3 ms in 25 W, 9.9 ms in MAXN SUPER. Each record names its own mode</td><td><span class="pill"><span class="mark done" aria-hidden="true"></span>Passes</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure>
+    <div class="chart-card">
+<svg class="chart" viewBox="0 0 640 526" role="img" aria-labelledby="chart-title chart-desc">
+<title id="chart-title">Latency, board power and GPU clock against input resolution, default clock scaling versus locked clocks</title>
+<desc id="chart-desc">Stand-in model, MAXN SUPER. With default clock scaling, p50 latency stays between 2.1 and 2.6 ms from 112 to 672 px while the GPU clock rises from 306 to 1020 MHz. With clocks locked, latency sits near 1.15 ms up to 336 px, then rises to 2.8, 9.9 and 22.7 ms at 672, 1344 and 2048 px. Default scaling takes 13.8 and 30.7 ms at 1344 and 2048 px. The table below lists every value.</desc>
+<g class="legend">
+<line class="key key-locked" x1="56" x2="78" y1="14" y2="14"/><text class="legend-text" x="84" y="18">Clocks locked (jetson_clocks)</text>
+<line class="key key-default" x1="286" x2="308" y1="14" y2="14"/><text class="legend-text" x="314" y="18">Default clock scaling</text>
+</g>
+<text class="panel-title" x="56" y="58">Latency, p50 (ms, log scale)</text>
+<line class="baseline" x1="56" x2="620" y1="174.0" y2="174.0"/>
+<text class="tick" x="48" y="178.0" text-anchor="end">1</text>
+<line class="grid" x1="56" x2="620" y1="154.5" y2="154.5"/>
+<text class="tick" x="48" y="158.5" text-anchor="end">2</text>
+<line class="grid" x1="56" x2="620" y1="128.6" y2="128.6"/>
+<text class="tick" x="48" y="132.6" text-anchor="end">5</text>
+<line class="grid" x1="56" x2="620" y1="109.1" y2="109.1"/>
+<text class="tick" x="48" y="113.1" text-anchor="end">10</text>
+<line class="grid" x1="56" x2="620" y1="89.5" y2="89.5"/>
+<text class="tick" x="48" y="93.5" text-anchor="end">20</text>
+<polyline class="line line-default" points="70.0,147.3 197.8,147.9 272.6,153.6 400.5,147.8 528.3,100.0 606.0,77.4"/>
+<circle class="dot dot-default" data-i="0" cx="70.0" cy="147.3" r="4"/>
+<circle class="dot dot-default" data-i="1" cx="197.8" cy="147.9" r="4"/>
+<circle class="dot dot-default" data-i="2" cx="272.6" cy="153.6" r="4"/>
+<circle class="dot dot-default" data-i="3" cx="400.5" cy="147.8" r="4"/>
+<circle class="dot dot-default" data-i="4" cx="528.3" cy="100.0" r="4"/>
+<circle class="dot dot-default" data-i="5" cx="606.0" cy="77.4" r="4"/>
+<polyline class="line line-locked" points="70.0,170.4 197.8,169.7 272.6,169.8 400.5,145.3 528.3,109.3 606.0,85.9"/>
+<circle class="dot dot-locked" data-i="0" cx="70.0" cy="170.4" r="4"/>
+<circle class="dot dot-locked" data-i="1" cx="197.8" cy="169.7" r="4"/>
+<circle class="dot dot-locked" data-i="2" cx="272.6" cy="169.8" r="4"/>
+<circle class="dot dot-locked" data-i="3" cx="400.5" cy="145.3" r="4"/>
+<circle class="dot dot-locked" data-i="4" cx="528.3" cy="109.3" r="4"/>
+<circle class="dot dot-locked" data-i="5" cx="606.0" cy="85.9" r="4"/>
+<text class="dlabel" x="78.0" y="139.3">2.6 ms</text>
+<text class="dlabel" x="78.0" y="163.4">1.1 ms</text>
+<text class="dlabel" x="598.0" y="69.4" text-anchor="end">30.7 ms</text>
+<text class="dlabel" x="598.0" y="101.9" text-anchor="end">22.7 ms</text>
+<text class="panel-title" x="56" y="208">Board power, VDD_IN (W): mean over the timed loop</text>
+<line class="baseline" x1="56" x2="620" y1="324.0" y2="324.0"/>
+<text class="tick" x="48" y="328.0" text-anchor="end">0</text>
+<line class="grid" x1="56" x2="620" y1="298.0" y2="298.0"/>
+<text class="tick" x="48" y="302.0" text-anchor="end">5</text>
+<line class="grid" x1="56" x2="620" y1="272.0" y2="272.0"/>
+<text class="tick" x="48" y="276.0" text-anchor="end">10</text>
+<line class="grid" x1="56" x2="620" y1="246.0" y2="246.0"/>
+<text class="tick" x="48" y="250.0" text-anchor="end">15</text>
+<line class="grid" x1="56" x2="620" y1="220.0" y2="220.0"/>
+<text class="tick" x="48" y="224.0" text-anchor="end">20</text>
+<polyline class="line line-default" points="70.0,290.3 197.8,286.9 272.6,277.9 400.5,246.7 528.3,239.6 606.0,238.9"/>
+<circle class="dot dot-default" data-i="0" cx="70.0" cy="290.3" r="4"/>
+<circle class="dot dot-default" data-i="1" cx="197.8" cy="286.9" r="4"/>
+<circle class="dot dot-default" data-i="2" cx="272.6" cy="277.9" r="4"/>
+<circle class="dot dot-default" data-i="3" cx="400.5" cy="246.7" r="4"/>
+<circle class="dot dot-default" data-i="4" cx="528.3" cy="239.6" r="4"/>
+<circle class="dot dot-default" data-i="5" cx="606.0" cy="238.9" r="4"/>
+<polyline class="line line-locked" points="70.0,285.3 197.8,279.8 272.6,268.1 400.5,249.9 528.3,243.6 606.0,242.9"/>
+<circle class="dot dot-locked" data-i="0" cx="70.0" cy="285.3" r="4"/>
+<circle class="dot dot-locked" data-i="1" cx="197.8" cy="279.8" r="4"/>
+<circle class="dot dot-locked" data-i="2" cx="272.6" cy="268.1" r="4"/>
+<circle class="dot dot-locked" data-i="3" cx="400.5" cy="249.9" r="4"/>
+<circle class="dot dot-locked" data-i="4" cx="528.3" cy="243.6" r="4"/>
+<circle class="dot dot-locked" data-i="5" cx="606.0" cy="242.9" r="4"/>
+<text class="panel-title" x="56" y="358">GPU clock during the run (MHz): peak, band shows the range</text>
+<line class="baseline" x1="56" x2="620" y1="474.0" y2="474.0"/>
+<text class="tick" x="48" y="478.0" text-anchor="end">0</text>
+<line class="grid" x1="56" x2="620" y1="439.3" y2="439.3"/>
+<text class="tick" x="48" y="443.3" text-anchor="end">400</text>
+<line class="grid" x1="56" x2="620" y1="404.7" y2="404.7"/>
+<text class="tick" x="48" y="408.7" text-anchor="end">800</text>
+<line class="grid" x1="56" x2="620" y1="370.0" y2="370.0"/>
+<text class="tick" x="48" y="374.0" text-anchor="end">1200</text>
+<polygon class="band band-default" points="70.0,438.6 197.8,412.1 272.6,394.4 400.5,385.6 528.3,385.6 606.0,385.6 606.0,385.6 528.3,385.6 400.5,385.6 272.6,438.6 197.8,438.6 70.0,447.5"/>
+<polyline class="line line-default" points="70.0,438.6 197.8,412.1 272.6,394.4 400.5,385.6 528.3,385.6 606.0,385.6"/>
+<circle class="dot dot-default" data-i="0" cx="70.0" cy="438.6" r="4"/>
+<circle class="dot dot-default" data-i="1" cx="197.8" cy="412.1" r="4"/>
+<circle class="dot dot-default" data-i="2" cx="272.6" cy="394.4" r="4"/>
+<circle class="dot dot-default" data-i="3" cx="400.5" cy="385.6" r="4"/>
+<circle class="dot dot-default" data-i="4" cx="528.3" cy="385.6" r="4"/>
+<circle class="dot dot-default" data-i="5" cx="606.0" cy="385.6" r="4"/>
+<polyline class="line line-locked" points="70.0,385.6 197.8,385.6 272.6,385.6 400.5,385.6 528.3,385.6 606.0,385.6"/>
+<circle class="dot dot-locked" data-i="0" cx="70.0" cy="385.6" r="4"/>
+<circle class="dot dot-locked" data-i="1" cx="197.8" cy="385.6" r="4"/>
+<circle class="dot dot-locked" data-i="2" cx="272.6" cy="385.6" r="4"/>
+<circle class="dot dot-locked" data-i="3" cx="400.5" cy="385.6" r="4"/>
+<circle class="dot dot-locked" data-i="4" cx="528.3" cy="385.6" r="4"/>
+<circle class="dot dot-locked" data-i="5" cx="606.0" cy="385.6" r="4"/>
+<text class="dlabel" x="78.0" y="377.6">1020 MHz, locked</text>
+<text class="dlabel" x="78.0" y="465.5">306 to 408 MHz</text>
+<text class="tick" x="70.0" y="494" text-anchor="middle">112</text>
+<text class="tick" x="197.8" y="494" text-anchor="middle">224</text>
+<text class="tick" x="272.6" y="494" text-anchor="middle">336</text>
+<text class="tick" x="400.5" y="494" text-anchor="middle">672</text>
+<text class="tick" x="528.3" y="494" text-anchor="middle">1344</text>
+<text class="tick" x="606.0" y="494" text-anchor="middle">2048</text>
+<text class="axis-title" x="338.0" y="516" text-anchor="middle">Input resolution, px per side (log scale)</text>
+<line class="crosshair" x1="0" x2="0" y1="30" y2="474" visibility="hidden"/>
+<rect class="hit" tabindex="0" data-i="0" x="56.0" y="30" width="77.9" height="444" aria-label="112 px. Locked: p50 1.14 ms, p99 1.33 ms, 7.44 W. Default: p50 2.57 ms, p99 6.45 ms, 6.49 W, GPU 306 to 408 MHz"/>
+<rect class="hit" tabindex="0" data-i="1" x="133.9" y="30" width="101.3" height="444" aria-label="224 px. Locked: p50 1.17 ms, p99 1.46 ms, 8.50 W. Default: p50 2.52 ms, p99 5.62 ms, 7.13 W, GPU 408 to 714 MHz"/>
+<rect class="hit" tabindex="0" data-i="2" x="235.2" y="30" width="101.3" height="444" aria-label="336 px. Locked: p50 1.16 ms, p99 1.36 ms, 10.75 W. Default: p50 2.06 ms, p99 5.35 ms, 8.87 W, GPU 408 to 918 MHz"/>
+<rect class="hit" tabindex="0" data-i="3" x="336.5" y="30" width="127.8" height="444" aria-label="672 px. Locked: p50 2.77 ms, p99 3.16 ms, 14.25 W. Default: p50 2.53 ms, p99 5.94 ms, 14.87 W, GPU 1020 to 1020 MHz"/>
+<rect class="hit" tabindex="0" data-i="4" x="464.4" y="30" width="102.8" height="444" aria-label="1344 px. Locked: p50 9.91 ms, p99 10.12 ms, 15.47 W. Default: p50 13.82 ms, p99 16.29 ms, 16.23 W, GPU 1020 to 1020 MHz"/>
+<rect class="hit" tabindex="0" data-i="5" x="567.2" y="30" width="52.8" height="444" aria-label="2048 px. Locked: p50 22.73 ms, p99 27.71 ms, 15.60 W. Default: p50 30.74 ms, p99 32.34 ms, 16.36 W, GPU 1020 to 1020 MHz"/>
+</svg>
+
+    </div>
+    <div class="tip" id="chart-tip" hidden></div>
+    <figcaption>Resolution check in MAXN SUPER: default clock scaling (gray) against clocks locked with <span class="mono">jetson_clocks</span> (blue), 1000 to 2000 iterations per point. Hover or tab through the columns for every value. The table below has the same numbers.</figcaption>
+  </figure>
+
+  <div class="table-scroll">
+    <table class="wide" id="chart-table">
+      <caption>Chart data. Stand-in model, fp16, MAXN SUPER. With clocks locked the GPU ran at 1020 MHz at every size.</caption>
+      <thead><tr><th scope="col" class="num">Resolution (px)</th><th scope="col" class="num">p50 default (ms)</th><th scope="col" class="num">p50 locked (ms)</th><th scope="col" class="num">p99 default (ms)</th><th scope="col" class="num">p99 locked (ms)</th><th scope="col" class="num">VDD_IN default (W)</th><th scope="col" class="num">VDD_IN locked (W)</th><th scope="col" class="num">GPU clock default (MHz)</th></tr></thead>
+      <tbody>
+        <tr><td class="num">112</td><td class="num">2.57</td><td class="num">1.14</td><td class="num">6.45</td><td class="num">1.33</td><td class="num">6.49</td><td class="num">7.44</td><td class="num">306–408</td></tr>
+        <tr><td class="num">224</td><td class="num">2.52</td><td class="num">1.17</td><td class="num">5.62</td><td class="num">1.46</td><td class="num">7.13</td><td class="num">8.50</td><td class="num">408–714</td></tr>
+        <tr><td class="num">336</td><td class="num">2.06</td><td class="num">1.16</td><td class="num">5.35</td><td class="num">1.36</td><td class="num">8.87</td><td class="num">10.75</td><td class="num">408–918</td></tr>
+        <tr><td class="num">672</td><td class="num">2.53</td><td class="num">2.77</td><td class="num">5.94</td><td class="num">3.16</td><td class="num">14.87</td><td class="num">14.25</td><td class="num">1020</td></tr>
+        <tr><td class="num">1344</td><td class="num">13.82</td><td class="num">9.91</td><td class="num">16.29</td><td class="num">10.12</td><td class="num">16.23</td><td class="num">15.47</td><td class="num">1020</td></tr>
+        <tr><td class="num">2048</td><td class="num">30.74</td><td class="num">22.73</td><td class="num">32.34</td><td class="num">27.71</td><td class="num">16.36</td><td class="num">15.60</td><td class="num">1020</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="takeaways">
+    <p><strong>What the default clock scaling hid.</strong> Left to itself, the governor answers extra work with higher clocks and more power, so latency stayed flat from 112 to 672 px while board power rose from 6.5 W to 14.9 W. With the clocks locked, latency follows the work. Up to 336 px it holds at the stand-in model's fixed overhead of about 1.15 ms, and above that it climbs with the pixel count: 2.29 times longer from 1344 to 2048 px, for 2.32 times the pixels.</p>
+    <p>Locking also removed most of the jitter. At 224 px, over 3000 steps each, the worst 1% went from 4.90 ms to 1.38 ms. Large images took about a quarter less time: 13.8 ms down to 9.9 ms at 1344 px, and 30.7 ms down to 22.7 ms at 2048 px. That happened although the GPU ran at 1020 MHz in both cases, so another clock was scaling, most likely the memory clock. <span class="mono">jetson_clocks</span> locks it too, but we can't read it without root. The one near-tie is 672 px, where the medians are 2.5 and 2.8 ms but the worst case halves from 5.9 to 3.2 ms. The price of locking is 1 to 2 W more at small sizes.</p>
+  </div>
+
+  <h3>Power modes, clocks locked</h3>
+  <div class="table-scroll">
+    <table class="wide">
+      <thead><tr><th scope="col">Mode</th><th scope="col" class="num">CPU / GPU clock (MHz)</th><th scope="col" class="num">224 px p50 / p99 (ms)</th><th scope="col" class="num">1344 px p50 / p99 (ms)</th><th scope="col" class="num">Power at 1344 px (W)</th><th scope="col" class="num">Energy per step at 1344 px (mJ)</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">15 W (mode 0)</th><td class="num">1497 / 612</td><td class="num">1.34 / 1.57</td><td class="num">12.60 / 16.76</td><td class="num">12.2</td><td class="num">155</td></tr>
+        <tr><th scope="row">25 W (mode 1)</th><td class="num">1344 / 918</td><td class="num">1.44 / 1.80</td><td class="num">10.30 / 14.01</td><td class="num">14.2</td><td class="num">148</td></tr>
+        <tr><th scope="row">MAXN SUPER (mode 2)</th><td class="num">1728 / 1020</td><td class="num">1.15 / 1.38</td><td class="num">9.91 / 13.05</td><td class="num">15.4</td><td class="num">154</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul>
+    <li><strong>Lower modes trade speed for power at about the same energy per step</strong>, roughly 150 mJ at 1344 px.</li>
+    <li>From MAXN SUPER to 15 W the GPU clock drops 40% but latency rises only 27%, so this workload isn't limited by the GPU clock alone.</li>
+    <li><strong>The 25 W mode has the slowest CPU</strong> (1344 MHz, against 1497 in 15 W), and it was the slowest mode at small sizes, where per-step CPU overhead dominates. That matters for a pipeline with CPU-side preprocessing.</li>
+    <li>No run throttled. The chip peaked at 61.5 °C.</li>
+  </ul>
+
+  <div class="takeaways">
+    <p>What this means for the project:</p>
+    <ul>
+      <li>Every experiment runs with the clocks locked. Default scaling adds jitter and understates the board.</li>
+      <li>We still need to choose the power mode for the main sweep. MAXN SUPER with locked clocks was fastest, with no throttling in these short runs, though longer runs of the real model need watching; the harness flags a locked clock that drops. 15 W gives about the same energy per step, which fits a battery-powered story.</li>
+      <li>Energy per inference belongs in the trade-off curves next to latency.</li>
+    </ul>
+  </div>
+</section>
+
+<section aria-labelledby="arm" id="arm-section">
+  <h2 id="arm">5. Is the Hiwonder SO-ARM101 kit right for this project?</h2>
+  <p>We had planned to buy the Hiwonder SO-ARM101 advanced kit, $459.99 on hiwonder.com and also sold on Amazon. Checking it against Hiwonder's own manual and product page on 2026-09-28 showed that it differs from the reference SO-101 in ways that matter for this project.</p>
+  <div class="table-scroll">
+    <table class="wide">
+      <thead><tr><th scope="col"></th><th scope="col">Hiwonder SO-ARM101, advanced, assembled</th><th scope="col">Reference SO-101 (WowRobo, Seeed, PartaBot)</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Follower servos</th><td>6 × Hiwonder <strong>HX-30HM</strong>, 30 kg·cm at 11.1 V, 1:345</td><td>6 × Feetech STS3215, 1/345</td></tr>
+        <tr><th scope="row">Leader servos</th><td>6 × Hiwonder <strong>HX-10HM</strong>, 10 kg·cm, <strong>1:147 on every joint</strong></td><td>STS3215 at 1/191, 1/345, 1/191, 1/147, 1/147, 1/147, chosen so the leader "can both sustain its own weight and it can be moved without requiring much force" (LeRobot docs)</td></tr>
+        <tr><th scope="row">Power</th><td>Two 12 V 5 A supplies, both arms at 12 V</td><td>Typically a 12 V follower and a 5 V leader</td></tr>
+        <tr><th scope="row">Controller</th><td>BusLinker V3.0</td><td>Feetech or Waveshare bus adapter</td></tr>
+        <tr><th scope="row">Cameras</th><td>0.3 MP (480p) wrist camera, 2 MP (1080p) wide-angle external camera, 1.2 kg stand</td><td>Usually one camera, or none</td></tr>
+        <tr><th scope="row">Software</th><td>Hiwonder's own <span class="mono">lerobot.zip</span>, an older snapshot (<span class="mono">python -m lerobot.record</span>), with conda Python 3.10</td><td>Stock LeRobot from PyPI, which our environments and your teleop helper use</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="evidence">
+    <div>
+      <h3>Evidence it would work</h3>
+      <ul>
+        <li>Hiwonder says its HM-series servos use the STS3215's protocol and register map.</li>
+        <li>Its driver gives the HX-30HM the STS3215's model number, 777, which is the number LeRobot's Feetech driver checks on connect.</li>
+        <li>Hiwonder's manual drives the arms with the standard <span class="mono">so101_follower</span> and <span class="mono">so101_leader</span> types and the <span class="mono">[feetech]</span> extra.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Evidence for caution</h3>
+      <ul>
+        <li>Hiwonder's two pull requests adding HX-30HM support to LeRobot, <a href="https://github.com/huggingface/lerobot/pull/3871">#3871</a> and <a href="https://github.com/huggingface/lerobot/pull/3872">#3872</a>, were closed without being merged. No LeRobot release lists these servos.</li>
+        <li>No model number is published for the leader's HX-10HM.</li>
+        <li>We found nothing showing the kit on stock LeRobot 0.4.4 or 0.5.x, or with <span class="mono">so101_unified_teleop.py</span>.</li>
+        <li>The uniform 1:147 leader should move easily, but it may not hold its own pose the way the reference leader's 1/345 shoulder does.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Questions for Dr. Liu</h3>
+  <ol class="questions">
+    <li>Has the lab, or an earlier cohort, run a Hiwonder SO-ARM101 on stock LeRobot or with your teleop helper? Would you accept a non-Feetech servo kit for a project whose output is repeatable measurements?</li>
+    <li>If not, should we buy a Feetech STS3215 kit instead? Checked on 2026-09-28: WowRobo Package 3 is $299 plus international shipping, assembled, with one leader, one follower and one camera. Seeed's SO-ARM101 Pro kit is $277.99 for the servos, adapter board and cables only, so we would print the parts and assemble it ourselves. PartaBot's kits are sold out. Either would need a second camera, which the Hiwonder advanced kit includes along with a camera stand and a USB hub.</li>
+    <li>Does the lab already have an SO-101 pair we could borrow? Is there a department purchase path, such as Amazon Business?</li>
+  </ol>
+</section>
+
+<section aria-labelledby="needs">
+  <h2 id="needs">6. What we need</h2>
+  <h3>From Dr. Liu</h3>
+  <ul>
+    <li>The arm decision in section 5.</li>
+    <li>OK for three admin changes on the board you provisioned:
+      <ul>
+        <li><code>sudo apt install --no-install-recommends python3-libnvinfer libnvinfer-bin</code>, for TensorRT Python and <code>trtexec</code> at 10.3.0.30, with no <code>apt update</code></li>
+        <li>adding the <span class="mono">sjsujetson</span> user to <span class="mono">dialout</span>, so LeRobot can open the arm's serial port</li>
+        <li>switching power modes and locking the clocks during benchmark runs. We did this once already, on the evening of 2026-09-28, for the harness checks, and put the board back to MAXN SUPER with clocks unlocked afterwards. Is it OK to keep doing it for experiments?</li>
+      </ul>
+    </li>
+    <li>Workstation access, a GPU with at least 24 GB for RoboTwin 2.0, the FP16 baseline and the fine-tune. That could be a lab machine, the SJSU cluster, or renting. RunPod lists an RTX 4090 at $0.34 per hour on its Community Cloud (checked 2026-09-28).</li>
+  </ul>
+  <h3>Team decisions</h3>
+  <ul>
+    <li>The target control rate. We assume 30 Hz.</li>
+    <li>The primary power mode for the sweep. The data is in section 4.</li>
+  </ul>
+  <p class="fine">After your OK, we will apply the two installs above, about 10 minutes of work.</p>
+</section>
+
+<section aria-labelledby="next">
+  <h2 id="next">7. Next steps, in priority order</h2>
+  <ol>
+    <li>Order the arm once section 5 is settled.</li>
+    <li>Pick the power mode for the main experiments, using the data in section 4.</li>
+    <li><strong>Run a small VLA end to end on the Jetson.</strong> SmolVLA through the harness with power, on recorded frames first and on the kit's cameras once they arrive. This shakes out the plumbing before Hy-VLA. It needs the <span class="mono">smolvla</span> extra and about 1 GB of weights.</li>
+    <li>Write the safety layer in <span class="mono">hardware/</span> before any closed-loop run: joint limits, a velocity cap built on LeRobot's <span class="mono">max_relative_target</span>, and a watchdog.</li>
+    <li>Secure the workstation, install RoboTwin 2.0, and take the FP16 Hy-VLA reference baseline.</li>
+    <li>On arm day: servo check, calibration, udev rules, teleop, and 10 throwaway episodes to exercise recording. Measure the kit's cameras with our camera test tool: frame rate, CPU cost and preprocessing time.</li>
+  </ol>
+</section>
+
+<section class="appendix" aria-labelledby="fixes">
+  <h2 id="fixes">Appendix A. Fixes landed in the repo</h2>
+  <p class="fine">Merged into <span class="mono">main</span> on 2026-09-28 as pull request #3, with every commit kept. The locked-clock records and the script that ran them are on branch <span class="mono">exp/pinned-clock-checks</span>, not yet reviewed. The repo also holds a Markdown version of this report.</p>
+  <ul>
+    <li><span class="mono">hello_latency.py</span> crashed after writing its record whenever <span class="mono">--out</span> was given.</li>
+    <li>The benchmark's dirty-tree check counted the previous run's JSON, so every run after the first in a sweep was marked non-reproducible.</li>
+    <li><span class="mono">hello_arm.py</span> could not import the SO-101 driver on LeRobot 0.4.4 or 0.5.1, because the module moved. It would also have dropped into the interactive calibration prompt on an uncalibrated arm.</li>
+    <li>The power state was recorded as unknown on this board, since there is no passwordless sudo. It is now read without sudo.</li>
+  </ul>
+</section>
+
+<section class="appendix" aria-labelledby="changes">
+  <h2 id="changes">Appendix B. Changes to the shared board, outside the repo</h2>
+  <ul>
+    <li><span class="mono">uv</span> 0.12.20 in <span class="mono">~/.local/bin</span>, plus a uv-managed CPython 3.12.14</li>
+    <li><span class="mono">~/lerobot-py310-cuda</span> (2.4 GB) and <span class="mono">~/lerobot-py312</span> (1.7 GB). The CUDA venv also holds its pip constraint guard</li>
+    <li>the <span class="mono">vla</span> and <span class="mono">arm</span> aliases, 7 lines appended to <span class="mono">~/.bashrc</span></li>
+    <li><span class="mono">~/so101_unified_teleop.py</span>, identical to the course repo copy</li>
+    <li><span class="mono">~/board-audit-2026-09-28.txt</span> and the log of the harness checks, <span class="mono">~/sanity-checks-20260928-214925.log</span></li>
+    <li>GitHub's CLI, <span class="mono">gh</span> 2.101.0, in <span class="mono">~/.local/bin</span>, used to open our pull requests</li>
+  </ul>
+  <p class="fine">Nothing else changed. Sudo was used once, on the evening of 2026-09-28, for the harness checks, and only for <span class="mono">nvpmodel</span> and <span class="mono">jetson_clocks</span>. The board went back to MAXN SUPER with clocks unlocked, and we checked it afterwards. No apt, and no containers touched.</p>
+</section>
+
+<footer>Prepared for the 2026-09-29 advisor meeting. Source: <span class="mono">docs/reports/2026-09-29-advisor-update.md</span> in the edge-vla repository, with measurements in <span class="mono">results/</span>.</footer>
+
+</main>
+
+<script>
+(() => {
+  const rows = [{"res": 112, "default": {"p50": 2.574, "p99": 6.452, "w": 6.49, "gmin": 306.0, "gmax": 408.0, "mj": 23.293, "tj": 54.343, "iters": 2000}, "locked": {"p50": 1.138, "p99": 1.335, "w": 7.437, "gmin": 1020.0, "gmax": 1020.0, "mj": 8.583, "tj": 56.781, "iters": 2000}}, {"res": 224, "default": {"p50": 2.521, "p99": 5.619, "w": 7.126, "gmin": 408.0, "gmax": 714.0, "mj": 22.873, "tj": 54.437, "iters": 2000}, "locked": {"p50": 1.166, "p99": 1.457, "w": 8.497, "gmin": 1020.0, "gmax": 1020.0, "mj": 10.088, "tj": 56.75, "iters": 2000}}, {"res": 336, "default": {"p50": 2.059, "p99": 5.352, "w": 8.869, "gmin": 408.0, "gmax": 918.0, "mj": 23.998, "tj": 54.968, "iters": 2000}, "locked": {"p50": 1.162, "p99": 1.365, "w": 10.748, "gmin": 1020.0, "gmax": 1020.0, "mj": 12.713, "tj": 56.625, "iters": 2000}}, {"res": 672, "default": {"p50": 2.533, "p99": 5.941, "w": 14.87, "gmin": 1020.0, "gmax": 1020.0, "mj": 54.284, "tj": 57.312, "iters": 2000}, "locked": {"p50": 2.771, "p99": 3.16, "w": 14.249, "gmin": 1020.0, "gmax": 1020.0, "mj": 39.858, "tj": 58.0, "iters": 2000}}, {"res": 1344, "default": {"p50": 13.817, "p99": 16.288, "w": 16.229, "gmin": 1020.0, "gmax": 1020.0, "mj": 211.482, "tj": 59.187, "iters": 1000}, "locked": {"p50": 9.914, "p99": 10.115, "w": 15.471, "gmin": 1020.0, "gmax": 1020.0, "mj": 153.511, "tj": 59.437, "iters": 1000}}, {"res": 2048, "default": {"p50": 30.741, "p99": 32.342, "w": 16.36, "gmin": 1020.0, "gmax": 1020.0, "mj": 491.22, "tj": 62.406, "iters": 1000}, "locked": {"p50": 22.73, "p99": 27.713, "w": 15.603, "gmin": 1020.0, "gmax": 1020.0, "mj": 359.503, "tj": 61.468, "iters": 1000}}];
+  const svg = document.querySelector("svg.chart");
+  const tip = document.getElementById("chart-tip");
+  const figure = svg && svg.closest("figure");
+  if (!svg || !tip || !figure) return;
+  const cross = svg.querySelector(".crosshair");
+  const dots = Array.from(svg.querySelectorAll(".dot"));
+  const hits = Array.from(svg.querySelectorAll(".hit"));
+  const xs = Array.from(svg.querySelectorAll(".dot-locked")).slice(0, rows.length)
+    .map((d) => Number(d.getAttribute("cx")));
+
+  function group(text) {
+    const p = document.createElement("p");
+    p.className = "tip-group";
+    p.textContent = text;
+    return p;
+  }
+  function row(value, label, series) {
+    const p = document.createElement("p");
+    p.className = "tip-row";
+    const key = document.createElement("span");
+    key.className = series === "default" ? "tip-key default" : "tip-key";
+    const v = document.createElement("strong");
+    v.textContent = value;
+    const l = document.createElement("span");
+    l.textContent = label;
+    p.append(key, v, l);
+    return p;
+  }
+
+  function show(i) {
+    const r = rows[i];
+    const x = xs[i];
+    cross.setAttribute("x1", x);
+    cross.setAttribute("x2", x);
+    cross.setAttribute("visibility", "visible");
+    dots.forEach((d) => d.classList.toggle("on", Number(d.dataset.i) === i));
+
+    const head = document.createElement("p");
+    head.className = "tip-head";
+    head.textContent = r.res + " px";
+    const a = r.default, b = r.locked;
+    const clock = a.gmin === a.gmax ? String(a.gmax) : a.gmin + "–" + a.gmax;
+    tip.replaceChildren(
+      head,
+      group("Clocks locked"),
+      row(b.p50.toFixed(2) + " ms", "p50", "locked"),
+      row(b.p99.toFixed(2) + " ms", "p99", "locked"),
+      row(b.w.toFixed(2) + " W", "board power", "locked"),
+      group("Default scaling"),
+      row(a.p50.toFixed(2) + " ms", "p50", "default"),
+      row(a.p99.toFixed(2) + " ms", "p99", "default"),
+      row(a.w.toFixed(2) + " W", "board power", "default"),
+      row(clock + " MHz", "GPU clock", "default")
+    );
+    tip.hidden = false;
+
+    const svgBox = svg.getBoundingClientRect();
+    const figBox = figure.getBoundingClientRect();
+    const px = svgBox.left + x * (svgBox.width / svg.viewBox.baseVal.width) - figBox.left;
+    const tipW = tip.offsetWidth;
+    let left = px + 14;
+    if (left + tipW > figBox.width - 4) left = px - tipW - 14;
+    tip.style.left = Math.max(4, left) + "px";
+  }
+
+  function hide() {
+    cross.setAttribute("visibility", "hidden");
+    dots.forEach((d) => d.classList.remove("on"));
+    tip.hidden = true;
+  }
+
+  hits.forEach((h) => {
+    const i = Number(h.dataset.i);
+    h.addEventListener("pointerenter", () => show(i));
+    h.addEventListener("focus", () => show(i));
+    h.addEventListener("blur", hide);
+  });
+  svg.addEventListener("pointerleave", hide);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+})();
+</script>
+
+</body></html>
