@@ -1,0 +1,104 @@
+{
+  "schema": "latency/v1",
+  "label": "pm2-pinned-res-2048",
+  "timestamp_utc": "2026-09-29T04:52:58.246402+00:00",
+  "config": {
+    "config_file": null,
+    "resolution": 2048,
+    "action_chunk": 8,
+    "precision": "fp16",
+    "iters": 1000,
+    "warmup": 20,
+    "target_hz": 30.0
+  },
+  "latency": {
+    "n": 1000,
+    "mean_ms": 23.040112089993272,
+    "stdev_ms": 1.000102515729378,
+    "min_ms": 22.477991000414477,
+    "p50_ms": 22.729966998667805,
+    "p90_ms": 24.183615001675207,
+    "p99_ms": 27.712884000720805,
+    "max_ms": 28.232517001015367
+  },
+  "memory": {
+    "peak_allocated_gib": 0.22014665603637695,
+    "peak_reserved_gib": 0.265625
+  },
+  "control_rate": {
+    "sustained_hz_at_p50": 351.95827607091894,
+    "worst_case_hz_at_p99": 288.6743941840164,
+    "meets_budget": true
+  },
+  "power": {
+    "source": "ina3221 sysfs",
+    "interval_ms": 50.0,
+    "n_samples": 461,
+    "duration_s": 23.000076760999946,
+    "rail_voltage_mv": {
+      "VDD_IN": 4992,
+      "VDD_CPU_GPU_CV": 4984,
+      "VDD_SOC": 4992
+    },
+    "rails": {
+      "VDD_IN": {
+        "mean_w": 15.603367704989154,
+        "peak_w": 15.734784
+      },
+      "VDD_CPU_GPU_CV": {
+        "mean_w": 7.225654004338395,
+        "peak_w": 7.336448000000001
+      },
+      "VDD_SOC": {
+        "mean_w": 3.0642433665943605,
+        "peak_w": 3.075072
+      }
+    },
+    "gpu_freq_mhz": {
+      "min": 1020.0,
+      "max": 1020.0
+    },
+    "tj_temp_c": {
+      "start": 57.937,
+      "max": 61.468
+    },
+    "energy_per_inference_j": 0.35950334090433117
+  },
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": "GPU MinFreq=1020000000 MaxFreq=1020000000 CurrentFreq=1020000000",
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 1020000000,
+        "max_hz": 1020000000,
+        "cur_hz": 1020000000,
+        "pinned": true
+      },
+      "cpu0": {
+        "min_khz": 1728000,
+        "max_khz": 1728000,
+        "cur_khz": 1728000,
+        "pinned": true,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": true
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "af4b51bbef721c5dbd66a4c44d128dcd4ef0fddf",
+    "branch": "exp/pinned-clock-checks",
+    "dirty": false
+  },
+  "torch": {
+    "version": "2.8.0",
+    "cuda": "12.6"
+  }
+}
