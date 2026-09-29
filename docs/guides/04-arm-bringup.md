@@ -30,7 +30,11 @@ Before the first power-on:
 Software safety, which you build once and then rely on:
 
 - Per-joint position limits, enforced in our wrapper, not in the policy.
-- A velocity cap, so a bad action cannot command a full-speed swing.
+- A velocity cap, so a bad action cannot command a full-speed swing. LeRobot
+  0.4 and 0.5 already provide the per-step half of this. `max_relative_target`
+  in the follower config clamps each command to within that distance of the
+  measured position, per joint if given a dict. Set it, then add the time-based
+  cap in our wrapper.
 - A watchdog that commands hold-position if no new action arrives in time.
 
 Those live in `hardware/`. Write them before the first closed-loop policy run,
@@ -46,9 +50,13 @@ and it has pictures:
 
 Also keep your vendor's own documentation open. If you bought the Hiwonder kit,
 that is the
-[SO-ARM101 user manual](https://docs.hiwonder.com/projects/LeRobot/en/latest/docs/SO-ARM101%20Open-Source%206-Axis%20Robotic%20Arm%20User%20Manual.html).
+[SO-ARM101 user manual](https://docs.hiwonder.com/projects/LeRobot/en/latest/docs/SO_ARM101_Open_Source_6_Axis_Robotic_Arm_User_Manual.html).
 Vendors differ in control board and servo firmware, and the vendor page is the
-faster answer for anything board-specific.
+faster answer for anything board-specific. The Hiwonder kit uses Hiwonder's
+HX-30HM and HX-10HM servos rather than Feetech ones, and its manual installs
+LeRobot from Hiwonder's own snapshot. See the correction in
+[the purchase guide](01-hardware-purchase-guide.md) before assuming the steps
+below apply unchanged.
 
 Two things that trip up everyone:
 
@@ -76,17 +84,21 @@ Assembled means built, not calibrated.
 
 ### If your servos have magnetic encoders
 
-Some kits ship STS3215 servos with 360° magnetic encoders instead of the stock
-potentiometer. This is an upgrade. Potentiometer servos have a dead zone near
-the travel limits, and magnetic encoders do not, so position feedback is
-cleaner and repeatability improves. For a project whose output is success rate
-on precise manipulation, less position noise is worth having.
+The Feetech STS3215 already uses a 12-bit, 360° magnetic encoder, 4096 steps
+per turn, and so do Hiwonder's HX servos. Potentiometer servos, such as
+Feetech's SCS line, have a dead zone near the travel limits, and magnetic
+encoders do not. Position feedback is cleaner and repeatability improves. For a
+project whose output is success rate on precise manipulation, less position
+noise is worth having.
 
 The catch is that some units ship needing a firmware update, and the symptom
 looks like a wiring fault. If `lerobot-find-port` sees the board but
 `lerobot-setup-motors` reports motors not found on every baud rate, go to your
-vendor's firmware page before opening a LeRobot issue. For Hiwonder that is the
-[magnetic encoder servo firmware flashing tutorial](https://docs.hiwonder.com/projects/LeRobot/en/latest/docs/Magnetic%20Encoder%20Servo%20Firmware%20Flashing%20Tutorial.html).
+vendor's firmware page before opening a LeRobot issue. Hiwonder's magnetic
+encoder firmware tutorial no longer resolves (checked 2026-09-28). Their docs
+site now has only the manual and an
+[appendix of software downloads](https://docs.hiwonder.com/projects/LeRobot/en/latest/docs/Appendix.html),
+so ask Hiwonder support if you hit this.
 
 ## 2. Find the serial ports
 
@@ -107,6 +119,10 @@ sudo usermod -aG dialout $USER
 # log out and back in, or:
 newgrp dialout
 ```
+
+On `sjsujetson-36` the `sjsujetson` user was not in `dialout` as of
+2026-09-28, so do this before the arm arrives. `hardware/hello_arm.py` prints
+the same hint when it hits the error.
 
 ### Make the port names stable
 
@@ -202,6 +218,11 @@ wget https://raw.githubusercontent.com/lkk688/edgeAI/main/jetson/robotics/so101_
 python ~/so101_unified_teleop.py --help
 ```
 
+Already done on `sjsujetson-36` on 2026-09-28, from the same commit as the
+course checkout in `/Developer/edgeAI` (sha256 `fad46f13…`). `--help` runs in
+both environments. For the first jog, pass `--max-relative-target` and
+`--limits-json` so a held key cannot drive a joint far.
+
 Six modes: `leader`, `gamepad-local`, `keyboard`, `remote-server`,
 `mac-ps5-client`, and `api-post`. Its docstring notes that it targets both
 LeRobot 0.4.4 and 0.5.x by sticking to stable APIs, so it runs from either of
@@ -276,11 +297,33 @@ v4l2-ctl --list-devices
 v4l2-ctl -d /dev/video0 --list-formats-ext
 ```
 
+`v4l2-ctl` comes from `v4l-utils`, which is not installed on `sjsujetson-36`.
+`gst-device-monitor-1.0 Video/Source` lists the same modes without installing
+anything.
+
 You want a line showing `MJPG` in the format list. If you only see `YUYV`, the
 camera will still work, at a higher CPU and USB cost.
 
-Give the cameras stable names too, since `/dev/videoN` renumbers. Same udev
-approach as the serial ports, keyed on `ATTRS{serial}` or the USB port path.
+Then measure what the loop will pay for it:
+
+```bash
+python3 hardware/hello_camera.py            # MJPG 640x480@30 on the first camera
+python3 hardware/hello_camera.py --fourcc YUYV
+```
+
+It reports the achieved frame rate, capture CPU, and preprocessing time to a
+224x224 GPU tensor. Two findings from the first run with a Logitech BRIO:
+in a dim room, auto-exposure halves the frame rate to about 15 fps, which sits
+below a 30 Hz control budget, and `INTER_AREA` resizing from 1080p costs
+about 24 ms a frame. Light the workspace, and capture near the model's
+resolution.
+
+Stable names come for free for UVC cameras. udev already creates
+`/dev/v4l/by-id/usb-<vendor>_<model>_<serial>-video-index0`, keyed on the
+camera's serial number, and LeRobot's `OpenCVCameraConfig` accepts that path as
+`index_or_path`, along with `fourcc="MJPG"`. Use the by-id path instead of
+`/dev/videoN`, which renumbers. Only cameras without a serial number need a
+custom udev rule keyed on the USB port path.
 
 Physical setup that matters more than you would expect:
 

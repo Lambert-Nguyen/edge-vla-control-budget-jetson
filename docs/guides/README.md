@@ -10,9 +10,10 @@ should see, and why the step exists.
 
 ## Our board is already provisioned
 
-Dr. Liu set up `sjsujetson-36` before handing it over. JetPack, CUDA,
-TensorRT, `sjsujetsontool` and likely the LeRobot Python environments are all
-present.
+Dr. Liu set up `sjsujetson-36` before handing it over. JetPack, CUDA, the
+TensorRT runtime and `sjsujetsontool` are present. The LeRobot Python
+environments were not. They were built from guide 3 on 2026-09-28, so they
+exist now. TensorRT's Python bindings are still missing, see guide 3.
 
 That makes the first job an audit, not an install. Start at
 [Verify an existing setup](02a-verify-existing-setup.md) and run

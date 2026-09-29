@@ -117,19 +117,34 @@ done
 Latency should rise with resolution. If it does not, you are timing queueing
 rather than execution, which means a missing `torch.cuda.synchronize()`.
 
+With clocks unpinned there is a second cause, and it is the one we hit on
+2026-09-28. The GPU governor raises the clock as the work grows. p50 stayed at
+2.1 to 2.6 ms from 112 to 672 px while `VDD_IN` climbed from 6.5 W to 14.9 W and
+the GPU clock went from 306-408 MHz to 1020 MHz. Only once the clock saturated
+did latency follow the pixels: 13.8 ms at 1344 px and 30.7 ms at 2048 px, a
+0.45 ratio for 0.43 of the pixels. The harness was timing execution
+correctly, and check 1 confirms the synchronize is in place. The lesson:
+take this check with `jetson_clocks` on, and never read a latency without the
+power and clock columns beside it. The records are in `results/`, labelled
+`res-*`.
+
 **3. The power mode changes the answer.**
 
 ```bash
+sudo jetson_clocks --store            # save the current, unpinned clock state first
 sudo nvpmodel -m 0 && sudo jetson_clocks
-python3 benchmarks/hello_latency.py --label pm0-15w
+python3 benchmarks/hello_latency.py --iters 2000 --label pm0-15w
 sudo nvpmodel -m 2 && sudo jetson_clocks
-python3 benchmarks/hello_latency.py --label pm2-maxn
+python3 benchmarks/hello_latency.py --iters 2000 --label pm2-maxn
+sudo jetson_clocks --restore          # unpins the clocks again
 ```
 
 The two records should differ, and each should have captured its own mode. This
 is the check that catches teammates comparing numbers taken in different modes.
 
-Put the board back where you found it when you are done. Ours ships in mode 2.
+Put the board back where you found it when you are done. Ours ships in mode 2
+with `jetson_clocks` off. `nvpmodel -m 2` alone does not unpin the clocks, so
+`--restore` (or a reboot) is the part that undoes it.
 
 ## Power modes on our board
 
@@ -189,10 +204,25 @@ so in the result.
 
 ## Power measurement
 
-The harness does not yet read the power rails. Add that next, and it is a good
-first PR for whoever owns the benchmark harness.
+The harness reads the power rails as of 2026-09-28. `hello_latency.py` starts
+a sampler thread after warmup and stops it after the timed loop. The thread
+reads the INA3221 rails (`VDD_IN`, `VDD_CPU_GPU_CV`, `VDD_SOC`), the GPU clock
+and the `tj` temperature straight from sysfs, with no root and no jtop. The
+record's `power` block holds mean and peak watts per rail, energy per inference
+(`VDD_IN` mean × mean latency, idle draw included), the GPU clock range and the
+peak temperature. On a machine without the sensor it is `null`, so the script
+still runs on the workstation.
 
-Two ways to get the number:
+Two things to know:
+
+- Sampling is every 50 ms by default (`--power-interval-ms`). Each current
+  read is an I2C transaction of about 0.7 ms, and the sensor itself updates
+  about every 8 ms. Over 3000 iterations p99 was 4.90 ms with sampling and
+  4.98 ms without (`--no-power`), so it does not perturb the measurement.
+- A timed loop shorter than about a second yields too few samples, and the
+  harness warns below 20. Raise `--iters` when the power number matters.
+
+The other ways to get the number, for ad hoc checks:
 
 ```bash
 # text stream, easy to parse, sample while a run is in flight

@@ -100,14 +100,48 @@ Power modes available, as shipped in mode 2:
 | 1 | 25W |
 | 2 | MAXN SUPER (default) |
 
-> _TODO: record the audit's JetPack/L4T, CUDA, cuDNN and TensorRT versions
-> here, and the power mode the main sweep is taken in once the team agrees._
+Audited 2026-09-28:
+
+| Component | Version |
+| --- | --- |
+| Module | Jetson Orin Nano 8 GB, Engineering Reference Developer Kit Super |
+| JetPack / L4T | 6.2 / R36.4.3 (`nvidia-jetpack` meta-package not installed) |
+| OS / kernel | Ubuntu 22.04.5 LTS / 5.15.148-tegra |
+| CUDA | 12.6 (nvcc V12.6.68) |
+| cuDNN | 9.3.0.75 |
+| TensorRT | 10.3.0.30 runtime. Python bindings (`python3-libnvinfer`) and `trtexec` (`libnvinfer-bin`) are **not installed** yet |
+| Storage | 465.8 GB NVMe, root filesystem, 322 GB free |
+| Memory | 7.4 GiB unified, zram swap 6 × 635 MB, no NVMe swap |
+| `sjsujetsontool` | v1.0.0, container image `jetson-llm:v1` |
+
+`nvpmodel -q` works without sudo on this image, and GPU clock limits are
+readable from `/sys/class/devfreq/17000000.gpu`, which is how the harness
+records clock state. Changing the mode or running `jetson_clocks` still needs
+sudo.
+
+> _TODO: the power mode the main sweep is taken in, once the team agrees.
+> [First benchmark](docs/guides/05-first-benchmark.md) suggests mode 1 (25 W)._
 
 ### 2. Python environment
 
-> _TODO: Virtual environment creation and the install order for the
-> Jetson-specific PyTorch wheel, which must come from the NVIDIA index rather
-> than PyPI. See [requirements.txt](requirements.txt)._
+Two environments, built 2026-09-28 with `uv` 0.12.20 following
+[Python environments](docs/guides/03-python-environments.md) path A. Their exact
+package sets are in [hardware/envs/](hardware/envs/).
+
+| Env | Python | Key packages | Use |
+| --- | --- | --- | --- |
+| `~/lerobot-py310-cuda` | 3.10.12 (system), `--system-site-packages` | torch 2.8.0 + CUDA 12.6, torchvision 0.23.0, lerobot 0.4.4 `[feetech]`, numpy 1.26.4, opencv-python-headless 4.11.0.86 | Inference, benchmarks. Alias `vla` |
+| `~/lerobot-py312` | 3.12.14 (uv-managed) | lerobot 0.5.1 `[feetech]`, torch 2.10.0+cpu, numpy 2.2.6 | Teleop, calibration, recording. Alias `arm` |
+
+Install order in the CUDA env: torch, torchvision and torchaudio **first**, from
+`https://pypi.jetson-ai-lab.io/jp6/cu126` (wheel names and sha256 in
+[requirements.txt](requirements.txt)), then `nvidia-cudss-cu12`, then LeRobot,
+then the numpy/OpenCV pins. A `pip.conf` inside the venv applies
+`constraints.txt`, so a later `pip install` that would replace the Jetson torch
+fails instead of silently going CPU-only.
+
+`vla` also sets `PYTHONNOUSERSITE=1`. Without it, `~/.local` (numpy 2.2.6,
+tensorflow, protobuf 7) sits on `sys.path` ahead of the system packages.
 
 ### 3. RoboTwin 2.0 simulation
 
@@ -171,7 +205,10 @@ find yourself running `git add -f` on a weight file, stop.
 
 ## Status
 
-295A: scaffolding and baseline characterization in progress.
+295A: scaffolding and baseline characterization in progress. As of
+2026-09-28 the Jetson environments and the measurement harness (latency,
+memory, board power) are verified on `sjsujetson-36`. The arm is not ordered
+yet. See the [2026-09-29 advisor update](docs/reports/2026-09-29-advisor-update.md).
 
 ## License
 

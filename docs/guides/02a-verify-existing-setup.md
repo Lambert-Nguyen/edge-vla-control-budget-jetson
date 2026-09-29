@@ -135,6 +135,11 @@ in and why.
 If the audit reports a different mode than 2, someone changed it. Ask before
 changing it back, because their reason may still apply.
 
+The board has no passwordless sudo, but `nvpmodel -q` works without it, and
+the audit reads the GPU clock limits from sysfs. `MinFreq == MaxFreq` means
+`jetson_clocks` is on. As of 2026-09-28 it is off, with the GPU scaling
+between 306 and 1020 MHz.
+
 ### 5. sjsujetsontool
 
 Already installed on our board. Run the read-only checks and keep the output:
@@ -240,6 +245,10 @@ stable. Read them before writing your own.
 `tegrastats` ships with JetPack. `jtop` comes from `jetson-stats` and may not
 be installed. Installing it is additive and low risk, but it wants sudo and a
 service restart, so mention it in the team channel first.
+
+On `sjsujetson-36` it is already installed (jetson-stats 4.3.2), the service
+is running, and the user is in the `jtop` group. The benchmark harness does not
+depend on it, since it reads the INA3221 rails from sysfs.
 
 ## What to actually do today
 

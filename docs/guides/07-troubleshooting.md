@@ -94,6 +94,29 @@ TensorRT is a system Debian package from JetPack, not a pip wheel. Recreate the
 venv with `--system-site-packages`. Do not `pip install tensorrt`, which pulls
 a different version and silently breaks engine compatibility.
 
+If the venv already has system site packages, check that the bindings exist at
+all: `dpkg -l python3-libnvinfer`. On `sjsujetson-36` the TensorRT runtime is
+installed but the bindings are not. `sudo apt install python3-libnvinfer`
+installs the matching 10.3.0.30 from the apt cache, with no `apt update`.
+
+**`undefined symbol: cusolverDnXsyevBatched_bufferSize` from `libtorch_cuda_linalg.so`.**
+Any `torch.linalg` decomposition on a CUDA tensor (`inv`, `solve`, `svd`,
+`eigh`) hits this with the torch 2.8.0 Jetson wheel on JetPack 6.2. The wheel
+expects a newer cuSOLVER than the 11.6.4 that ships. Do those operations on
+the CPU. Matmul, convolution and attention are unaffected.
+
+**A package imports from `~/.local` instead of the venv.**
+A `--system-site-packages` venv puts the user site (`~/.local/lib/python3.10/site-packages`)
+on `sys.path` ahead of the system packages. `export PYTHONNOUSERSITE=1`, which
+the `vla` alias does.
+
+**`pip install` in the CUDA env fails with `ResolutionImpossible` and mentions torch.**
+That is the guard working. `~/lerobot-py310-cuda/pip.conf` pins torch 2.8.0,
+torchvision 0.23.0, torchaudio 2.8.0 and numpy<2 through `constraints.txt`.
+The package you asked for wants a different torch, and installing it would
+have replaced the Jetson CUDA wheel with a CPU one. Find a version that
+accepts torch 2.8.0.
+
 **Import errors mentioning `numpy.dtype size changed` or `_ARRAY_API`.**
 NumPy 2 against wheels built for the NumPy 1.x ABI.
 
@@ -146,6 +169,15 @@ Stale calibration. It happens after a servo is replaced, the arm is
 disassembled, or a horn slips. Recalibrate and keep the file in
 `hardware/calibration/`.
 
+**`lerobot-find-port --help` starts asking you to unplug things.**
+It has no `--help`. It is the interactive flow, and it only lists ports.
+Ctrl-C out of it.
+
+**`hello_arm.py` says the arm is not calibrated.**
+It connects with `calibrate=False` on purpose, so it will not drop you into
+the calibration prompt. Run `lerobot-calibrate` for that `--robot-id` first, as
+in [Arm bring-up](04-arm-bringup.md) step 3.
+
 **The device is busy and will not connect.**
 A previous run did not disconnect. Find and kill the holding process:
 
@@ -165,6 +197,13 @@ It needs a readable color V4L2 device. Check what you actually have:
 v4l2-ctl --list-devices
 v4l2-ctl -d /dev/video0 --list-formats-ext
 ```
+
+**The camera delivers about 15 fps when you asked for 30.**
+Low light. UVC auto-exposure lengthens the exposure past the frame period and
+the frame rate drops with it, which a Logitech BRIO did on 2026-09-28: 15.5 fps
+in a dim room, back to 27.7 fps with a 15.6 ms manual exposure. Light the
+workspace, or fix the exposure in the camera config. `hardware/hello_camera.py`
+reports the achieved rate and mean brightness.
 
 **The CSI camera shows black in OpenCV.**
 CSI sensors (Arducam IMX219) emit raw Bayer, which OpenCV cannot decode. You
@@ -197,6 +236,15 @@ runs, as CONTRIBUTING requires.
 You are timing kernel launches rather than execution. CUDA calls are
 asynchronous. `torch.cuda.synchronize()` has to be inside the timed region,
 after the forward pass.
+
+Or the clocks are scaling. With `jetson_clocks` off, the GPU governor raises
+the clock as the work grows, so a small model's latency can stay flat while
+power doubles. Check `power.gpu_freq_mhz` and `power.rails.VDD_IN` in the two
+records. If they moved, pin the clocks and re-run.
+
+**Every run after the first in a sweep is marked `"dirty": true`.**
+Fixed on 2026-09-28. The dirty check counted the untracked JSON the previous
+run had just written. It now ignores `results/`. Pull the fix.
 
 **A TensorRT engine will not load.**
 Engines are not portable across TensorRT versions or across devices. Rebuild on

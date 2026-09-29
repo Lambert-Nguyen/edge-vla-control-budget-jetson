@@ -1,39 +1,51 @@
 # Python dependencies for edge-vla-control-budget-jetson
 #
-# NOTHING IS PINNED YET. Every version below is a placeholder. The Jetson
-# Orin Nano runs JetPack/L4T with a CUDA build of PyTorch that is NOT on
-# PyPI, so the pins here must be decided by what actually installs and runs
-# on the board -- not by what resolves on a laptop. Once the board image is
-# verified, replace each `>=` with `==` and record the JetPack version, L4T
-# release, CUDA version, and TensorRT version in README.md under Setup.
+# PARTIALLY PINNED, 2026-09-28. Pins marked "verified" are the versions
+# installed in ~/lerobot-py310-cuda on sjsujetson-36 and checked with
+# hardware/hello_jetson.py (14 checks, 0 failed). Board image: JetPack 6.2
+# (L4T R36.4.3), CUDA 12.6, cuDNN 9.3.0.75, TensorRT 10.3.0.30, system
+# Python 3.10.12. See README.md under Setup. Entries still marked TODO(pin)
+# are not installed yet, because nothing in the repo uses them so far.
+#
+# The Jetson runs a CUDA build of PyTorch that is NOT on PyPI, so these pins
+# describe the board, not a laptop. The exact package set of both board
+# environments is in hardware/envs/.
 #
 # Install order matters on Jetson: install the NVIDIA-provided torch wheel
 # FIRST, then everything else, so pip does not silently pull a CPU-only
-# torch from PyPI over it.
+# torch from PyPI over it. docs/guides/03-python-environments.md, path A2.
 
 # --- Core inference -----------------------------------------------------
-# TODO(pin): Jetson build only. Install from the NVIDIA wheel index for the
-#            installed JetPack release, not from PyPI. Record the exact
-#            wheel filename here as a comment when pinning.
-torch>=2.0
-# TODO(pin): must match the torch wheel's expected torchvision version
-#            exactly, or the ops registration fails at import.
-torchvision>=0.15
+# Verified. Jetson build only, from https://pypi.jetson-ai-lab.io/jp6/cu126
+#   torch-2.8.0-cp310-cp310-linux_aarch64.whl
+#   sha256=62a1beee9f2f147076a974d2942c90060c12771c94740830327cae705b2595fc
+# torch 2.10.0 from the same index fails cuBLAS handle creation (Dr. Liu's
+# board notes). Known limitation of 2.8.0 on JetPack 6.2: torch.linalg on
+# CUDA fails to load (cuSOLVER symbol mismatch), so run it on the CPU.
+torch==2.8.0
+# Verified. Same index, must match the torch wheel exactly.
+#   torchvision-0.23.0-cp310-cp310-linux_aarch64.whl
+#   sha256=907c4c1933789645ebb20dd9181d40f8647978e6bd30086ae7b01febb937d2d1
+torchvision==0.23.0
 
 # TODO(pin): pin once the VLA policy's minimum supported version is known;
 #            processor/config classes move between minor releases.
+#            lerobot 0.4.4's smolvla extra wants >=4.57.1,<5.
 transformers>=4.40
 
 # --- Robot policy stack -------------------------------------------------
-# TODO(pin): pin to a specific commit, not a release -- lerobot's dataset
-#            and policy APIs are still moving. Record the commit SHA here.
-lerobot
+# Verified. PyPI release 0.4.4 (tag v0.4.4), which Dr. Liu's teleop helper
+# targets. The CPU env for teleop and recording runs 0.5.1 on Python 3.12.
+lerobot[feetech]==0.4.4
+# Verified. Headless build: no Qt, no clash with the system OpenCV.
+opencv-python-headless==4.11.0.86
 
 # --- Quantization and compilation ---------------------------------------
-# TODO(pin): TensorRT ships with JetPack. Do NOT install it from PyPI on the
-#            board; pin to the system version and record it here so host-side
-#            engine builds match the Jetson runtime. Engines are not portable
-#            across TensorRT versions.
+# TensorRT ships with JetPack. Do NOT install it from PyPI on the board.
+# System version: 10.3.0.30. On sjsujetson-36 the Python bindings are NOT
+# installed yet: `sudo apt install python3-libnvinfer` (10.3.0.30, already
+# in the apt cache, no update needed). Engines are not portable across
+# TensorRT versions, so host-side builds must match 10.3.0.
 # tensorrt
 # TODO(pin): opset version matters more than package version -- record the
 #            opset used for export alongside the pin.
@@ -41,17 +53,19 @@ onnx>=1.15
 onnxruntime>=1.17
 
 # --- Jetson monitoring / power measurement ------------------------------
-# TODO(pin): jetson-stats provides jtop for board power, rail-level current,
-#            and unified-memory use. Jetson-only; guard imports so host-side
-#            code still runs. Pin after confirming it reads the Orin Nano's
-#            INA3221 rails correctly.
-jetson-stats>=4.2
+# Verified as a system install (/usr/local/lib/python3.10/dist-packages),
+# visible in the CUDA env through --system-site-packages. Do not install it
+# into the venv. benchmarks/hello_latency.py reads the INA3221 rails from
+# sysfs directly and does not need it.
+jetson-stats==4.3.2
 
 # --- Experiment plumbing ------------------------------------------------
-# TODO(pin): pin all of these together once the first full sweep runs clean.
-pyyaml>=6.0
-numpy>=1.24
-pandas>=2.0
+# Verified.
+pyyaml==6.0.3
+# Verified. Must stay below 2: several Jetson-built wheels use the NumPy 1.x ABI.
+numpy==1.26.4
+# Verified.
+pandas==2.3.3
 
 # --- Simulation ---------------------------------------------------------
 # RoboTwin 2.0 and its SAPIEN dependency are installed separately, from

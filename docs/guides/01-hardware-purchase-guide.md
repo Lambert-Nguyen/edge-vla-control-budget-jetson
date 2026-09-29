@@ -43,10 +43,10 @@ Three things, in priority order:
 
 | Item | Why | Approx. cost |
 | --- | --- | --- |
-| Hiwonder SO-ARM101 advanced kit, assembled | Both arms, both cameras, boom stand, powered hub, both supplies, clamps, tools | $460 + tax |
+| Hiwonder SO-ARM101 advanced kit, assembled | Both arms, both cameras, camera stand, 4-port USB hub, both supplies, clamps, tools. Servo compatibility still to confirm, see below | $460 + tax |
 | 1 TB NVMe SSD (if the Jetson does not have one) | Checkpoints, sim assets, episode recordings | $60 – $80 |
 | Inline power switch for the servo rail | Kill the arm without yanking a barrel jack | $10 |
-| 1× spare STS3215 servo | Students strip gears. You will want this at 11pm | $22 |
+| 1× spare follower servo | Students strip gears. You will want this at 11pm. STS3215, or HX-30HM for the Hiwonder kit | $22 |
 
 Rough total, buying everything new: **$590 – $610**.
 
@@ -61,9 +61,10 @@ the sticker prices are not like for like.
 | [PartaBot](https://partabot.com/products/so-arm101) | Electronics only $329, Full Kit assembled $479 (on sale from $550) | $329 – $479 | US | Boards, servos, USB-C cables, both power supplies, webcam, fasteners. Full Kit adds the PLA+ printed parts. Assembled is only offered together with Full Kit |
 | [Seeed Studio](https://www.seeedstudio.com/SO-ARM101-Low-Cost-AI-Arm-Kit-Pro-p-6427.html) | Pro servo motor kit, $249.90, plus 3D printed parts, $29.90 | ~$280 | US / international | Motors, adapter board, cables. You assemble |
 | [WowRobo](https://shop.wowrobo.com/products/so-arm101-diy-kit-assembled-version-1) | Pkg 1 printed parts + 12 servos $199, Pkg 2 unassembled $259, Pkg 3 assembled $299 | $199 – $299 | China, UPS express | Leader + follower, both power supplies, 4 clamps, one camera, USB-C cables. Taxes and duties prepaid, 1-3 days prep then 2-5 days transit. Hugging Face LeRobot hardware partner |
-| [Hiwonder](https://www.hiwonder.com/products/lerobot-so-101), also on Amazon | Assembled, advanced kit | ~$460 + tax | US via Amazon | Both arms, wrist and external camera, weighted boom stand, 4-port powered hub, both supplies, 4 clamps, tools. STS3215 servos, 30 kg·cm at 12 V, 360° magnetic encoders, BusLinker V3.0 board |
+| [Hiwonder](https://www.hiwonder.com/products/lerobot-so-101), also on Amazon | DIY $269.99 (no printed parts), Starter assembled $389.99, Standard $419.99, Advanced $459.99 | ~$460 + tax | US via Amazon | Advanced: both arms, 0.3 MP (480p) and 2 MP (1080p) cameras, 1.2 kg camera stand, 4-port USB hub, two 12 V 5 A supplies, 4 clamps, tools. Hiwonder HX-30HM (follower) and HX-10HM (leader) servos, not Feetech. BusLinker V3.0 boards |
 
-**Recommendation: the Hiwonder advanced kit, roughly $460 plus tax on Amazon.**
+**Recommendation: the Hiwonder advanced kit, roughly $460 plus tax on Amazon,
+if Dr. Liu confirms it runs on stock LeRobot. See the servo correction below.**
 Compare bundles all-in rather than on sticker price. WowRobo's $299 becomes
 about $470 once shipping, a second camera, a powered hub, and a camera mount
 are added. The Hiwonder kit lands near $500 with tax and includes all of those.
@@ -74,13 +75,36 @@ factor. Something will arrive dead or die in week two, and an Amazon
 replacement takes two days where an international RMA can cost weeks of a
 two-semester schedule.
 
-Its servos are STS3215 at 30 kg·cm and 12 V with 360° magnetic encoders, which
-is an upgrade over the stock potentiometer servos. Less position noise means
-less noise in the success rate. The BusLinker V3.0 board drives fine from stock
-LeRobot using the normal `so101_follower` and `so101_leader` classes, and
-Hiwonder publishes
-[their own setup documentation](https://docs.hiwonder.com/projects/LeRobot/en/latest/docs/SO-ARM101%20Open-Source%206-Axis%20Robotic%20Arm%20User%20Manual.html).
-Their Windows GUI is an optional diagnostic, not a requirement.
+**Correction, 2026-09-28: the Hiwonder kit does not use Feetech STS3215
+servos.** Hiwonder's
+[user manual](https://docs.hiwonder.com/projects/LeRobot/en/latest/docs/SO_ARM101_Open_Source_6_Axis_Robotic_Arm_User_Manual.html)
+lists six HX-30HM on the follower (30 kg·cm at 11.1 V, 1:345) and six HX-10HM
+on the leader (10 kg·cm at 11.1 V, 1:147 on every joint). They are Hiwonder's
+own 12-bit magnetic-encoder servos, rated 9 to 12.6 V. Both arms run from 12 V
+5 A supplies, so this kit has no 5 V versus 12 V split to get wrong. The stock
+STS3215 also has a 12-bit magnetic encoder, so the HX servos are not a
+resolution upgrade.
+
+Whether stock LeRobot drives them is plausible but unverified:
+
+- Hiwonder says its HM-series servos speak the STS3215's protocol and register
+  map, and its driver gives the HX-30HM the STS3215's model number, 777. That
+  is the number LeRobot's Feetech driver checks when it connects. No model
+  number is published for the leader's HX-10HM.
+- The manual drives the arms with the standard `so101_follower` and
+  `so101_leader` types and the `[feetech]` extra. It installs LeRobot from
+  Hiwonder's own `lerobot.zip`, though, an older snapshot that still uses
+  `python -m lerobot.record`, not from PyPI.
+- Hiwonder's two pull requests adding HX-30HM support to upstream LeRobot,
+  [#3871](https://github.com/huggingface/lerobot/pull/3871) and
+  [#3872](https://github.com/huggingface/lerobot/pull/3872), were closed
+  without being merged. No LeRobot release lists these servos, and nothing
+  in the course material says the teleop helper has been tried with them.
+
+So ask Dr. Liu before ordering. If nobody in the lab has run a Hiwonder arm on
+stock LeRobot 0.4.4 or 0.5.x, the kits built on genuine Feetech STS3215 servos
+(WowRobo, Seeed, PartaBot) are the hardware LeRobot is actually tested on.
+Hiwonder's Windows GUI is an optional diagnostic, not a requirement.
 
 **Buy WowRobo Package 3, $299 plus about $100 shipping, if** you want the
 cheapest path and do not mind sourcing the hub and second camera yourself.
@@ -259,7 +283,9 @@ experiment plan.
 - [ ] Confirmed with Dr. Liu what the lab already has
 - [ ] Confirmed which Jetson is assigned to the team and whether it has an NVMe
 - [ ] Ordered arm (leader + follower, assembled, both power supplies included)
-- [ ] Confirmed the kit's servos are STS3215 or Feetech, not a proprietary bus
+- [ ] Confirmed the kit's servos are STS3215 or Feetech, not a proprietary bus.
+      Hiwonder's HX-30HM and HX-10HM are neither. They claim the STS protocol,
+      which needs Dr. Liu's go-ahead before ordering
 - [ ] Ordered a second camera and a powered USB hub, unless the kit bundles them
 - [ ] Ordered an inline barrel-jack switch for the follower's 12 V rail
 - [ ] Confirmed the Jetson power supply is the 5 A USB-C or official barrel jack
