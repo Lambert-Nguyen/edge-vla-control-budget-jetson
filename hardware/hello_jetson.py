@@ -83,9 +83,17 @@ def check_memory() -> None:
     record("swap", "ok", swap.replace("\n", " | ") if swap else "none configured", OPTIONAL)
 
 
+def read_int(path: Path) -> int | None:
+    try:
+        return int(path.read_text().strip())
+    except (OSError, ValueError):
+        return None
+
+
 def check_power_mode() -> None:
     """Capture the board state that every benchmark record must cite."""
-    mode = sh(["sudo", "-n", "nvpmodel", "-q"])
+    # `nvpmodel -q` needs no root on JetPack 6. Older images want sudo.
+    mode = sh(["nvpmodel", "-q"]) or sh(["sudo", "-n", "nvpmodel", "-q"])
     if mode:
         record("nvpmodel", "ok", " / ".join(mode.splitlines()[-2:]), OPTIONAL)
     else:
@@ -95,8 +103,20 @@ def check_power_mode() -> None:
     if clocks:
         gpu = [ln for ln in clocks.splitlines() if "GPU" in ln]
         record("jetson_clocks", "ok", gpu[0].strip() if gpu else "reported", OPTIONAL)
-    else:
-        record("jetson_clocks", "warn", "run `sudo jetson_clocks --show` manually", OPTIONAL)
+        return
+
+    # Without sudo, read the GPU clock limits from sysfs. jetson_clocks raises
+    # each minimum to its maximum, so min == max means it is active.
+    devfreq = sorted(Path("/sys/class/devfreq").glob("*.gpu"))
+    if devfreq:
+        lo, hi, cur = (read_int(devfreq[0] / f) for f in ("min_freq", "max_freq", "cur_freq"))
+        if lo and hi and cur:
+            state = "on, clocks pinned" if lo == hi else "off, clocks scaling"
+            record("jetson_clocks", "ok",
+                   f"{state}  GPU {lo // 10**6}-{hi // 10**6} MHz, now {cur // 10**6} MHz (sysfs)",
+                   OPTIONAL)
+            return
+    record("jetson_clocks", "warn", "run `sudo jetson_clocks --show` manually", OPTIONAL)
 
 
 def check_torch() -> "object | None":
@@ -130,13 +150,16 @@ def check_tensorrt() -> None:
     try:
         import tensorrt
     except ImportError as exc:
-        record(
-            "tensorrt",
-            "warn",
-            f"not importable ({exc}). Create the venv with --system-site-packages "
-            "rather than pip installing tensorrt",
-            OPTIONAL,
-        )
+        # The bindings are the python3-libnvinfer Debian package. JetPack can be
+        # installed with the TensorRT runtime but without it, as on sjsujetson-36.
+        bindings = sh(["dpkg-query", "-W", "-f=${Status}", "python3-libnvinfer"])
+        if bindings and "install ok installed" in bindings:
+            hint = ("python3-libnvinfer is installed, so create the venv with "
+                    "--system-site-packages rather than pip installing tensorrt")
+        else:
+            hint = ("the python3-libnvinfer package is not installed. "
+                    "`sudo apt install python3-libnvinfer`, do not pip install tensorrt")
+        record("tensorrt", "warn", f"not importable ({exc}). {hint}", OPTIONAL)
         return
     record("tensorrt", "ok", tensorrt.__version__)
 
@@ -187,6 +210,29 @@ def bench_gpu(torch) -> None:
     record("peak gpu alloc", "ok", f"{peak_gb:.2f} GiB", OPTIONAL)
 
 
+def check_cuda_linalg(torch) -> None:
+    """Dense linear algebra on the GPU goes through cuSOLVER.
+
+    The torch 2.8.0 Jetson wheel expects a newer cuSOLVER than JetPack 6.2
+    ships, so torch.linalg.inv, solve, svd and eigh on CUDA tensors fail to
+    load. Matmul, convolution and attention are unaffected, which is why this
+    is a warning and not a failure. Do those decompositions on the CPU.
+    """
+    try:
+        a = torch.eye(8, device="cuda") * 2.0
+        torch.linalg.inv(a)
+        torch.cuda.synchronize()
+    except RuntimeError as exc:
+        reason = str(exc).splitlines()[0]
+        if "undefined symbol" in reason:
+            reason = "undefined" + reason.split("undefined", 1)[1]
+        record("cuda linalg", "warn",
+               f"torch.linalg on CUDA unavailable ({reason[:90]}). Run it on the CPU",
+               OPTIONAL)
+        return
+    record("cuda linalg", "ok", "torch.linalg.inv on CUDA", OPTIONAL)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", type=Path, help="write the full check record here")
@@ -204,6 +250,9 @@ def main() -> int:
     check_tensorrt()
     check_numpy()
     check_lerobot()
+
+    if torch is not None:
+        check_cuda_linalg(torch)
 
     if torch is not None and not args.skip_bench:
         bench_gpu(torch)

@@ -57,6 +57,11 @@ fi
 try nvcc --version
 printf '  cudnn:    %s\n'    "$(dpkg -l 2>/dev/null | awk '/libcudnn[0-9]/{print $3; exit}')"
 printf '  tensorrt: %s\n'    "$(dpkg -l 2>/dev/null | awk '/ libnvinfer[0-9]/{print $3; exit}')"
+# The runtime can be present without the Python bindings or trtexec.
+printf '  tensorrt python (python3-libnvinfer): %s\n' \
+  "$(dpkg -l python3-libnvinfer 2>/dev/null | awk '/^ii/{print $3}' | grep . || echo 'NOT installed')"
+printf '  trtexec (libnvinfer-bin):             %s\n' \
+  "$(dpkg -l libnvinfer-bin 2>/dev/null | awk '/^ii/{print $3}' | grep . || echo 'NOT installed')"
 
 sec "3. Memory, swap, storage"
 if have free; then free -h | sed 's/^/  /'; else printf '  [no free(1), not Linux]\n'; fi
@@ -73,9 +78,20 @@ if sudo -n true 2>/dev/null; then
   printf '\n'
   sudo -n jetson_clocks --show 2>&1 | grep -E 'GPU|EMC|Fan' | sed 's/^/  /'
 else
-  printf '  [needs sudo] run by hand:\n'
-  printf '    sudo nvpmodel -q\n'
-  printf '    sudo jetson_clocks --show\n'
+  # nvpmodel -q needs no root on JetPack 6, and the clock limits are in sysfs.
+  # jetson_clocks raises each minimum to its maximum, so min == max means on.
+  mode=$(nvpmodel -q 2>/dev/null)
+  if [ -n "$mode" ]; then printf '%s\n' "$mode" | sed 's/^/  /'
+  else printf '  [needs sudo] sudo nvpmodel -q\n'
+  fi
+  printf '\n'
+  for d in /sys/class/devfreq/*.gpu; do
+    [ -r "$d/min_freq" ] || continue
+    lo=$(cat "$d/min_freq"); hi=$(cat "$d/max_freq"); cur=$(cat "$d/cur_freq")
+    if [ "$lo" = "$hi" ]; then pin='pinned, jetson_clocks on'; else pin='scaling, jetson_clocks off'; fi
+    printf '  GPU MinFreq=%s MaxFreq=%s CurrentFreq=%s  (%s, sysfs)\n' "$lo" "$hi" "$cur" "$pin"
+  done
+  printf '  [needs sudo] full EMC and fan state: sudo jetson_clocks --show\n'
 fi
 
 sec "5. sjsujetsontool"

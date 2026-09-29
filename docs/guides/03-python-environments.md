@@ -1,9 +1,13 @@
 # Python environments
 
 > **Run the audit before you build anything.** `~/lerobot-py312` and
-> `~/lerobot-py310-cuda` are the paths on Dr. Liu's own board, and
-> `sjsujetson-36` was provisioned by him, so they are likely already installed
-> and working.
+> `~/lerobot-py310-cuda` are the paths on Dr. Liu's own board.
+>
+> On `sjsujetson-36` they were **not** preinstalled. Both were built from this
+> guide on 2026-09-28 and verified with `hardware/hello_jetson.py`, 14 checks
+> and 0 failed. Unless the audit shows otherwise, they are there now, so use
+> them and skip to [Verify, properly](#verify-properly). What differed on this
+> board is under [Notes from building on sjsujetson-36](#notes-from-building-on-sjsujetson-36).
 >
 > ```bash
 > bash hardware/audit_board.sh   # section 7 lists every venv and its packages
@@ -141,15 +145,52 @@ missing `libcudss.so.0`:
 ```bash
 source ~/lerobot-py310-cuda/bin/activate
 export LD_LIBRARY_PATH=$HOME/lerobot-py310-cuda/cudss-lib:$LD_LIBRARY_PATH
+export PYTHONNOUSERSITE=1
 ```
 
 Add an alias to `~/.bashrc`:
 
 ```bash
-echo "alias vla='source ~/lerobot-py310-cuda/bin/activate && export LD_LIBRARY_PATH=\$HOME/lerobot-py310-cuda/cudss-lib:\$LD_LIBRARY_PATH'" >> ~/.bashrc
+echo "alias vla='source ~/lerobot-py310-cuda/bin/activate && export LD_LIBRARY_PATH=\$HOME/lerobot-py310-cuda/cudss-lib:\$LD_LIBRARY_PATH PYTHONNOUSERSITE=1'" >> ~/.bashrc
 echo "alias arm='source ~/lerobot-py312/bin/activate'" >> ~/.bashrc
 source ~/.bashrc
 ```
+
+`PYTHONNOUSERSITE=1` matters on any board where someone has run
+`pip install --user`. A `--system-site-packages` venv puts `~/.local` on
+`sys.path` right after its own packages and ahead of the system ones, so
+anything the venv lacks gets imported from there. On `sjsujetson-36` that
+includes numpy 2.2.6, tensorflow and protobuf 7.
+
+### Notes from building on sjsujetson-36
+
+Built 2026-09-28 with `uv` 0.12.20. Everything above worked as written. These
+are the things that differed from Dr. Liu's board, or that the recipe does not
+say:
+
+- **TensorRT Python bindings are missing.** The runtime (10.3.0.30) is
+  installed, but `python3-libnvinfer` is not, so `import tensorrt` fails even
+  with `--system-site-packages`. The matching package is already in the apt
+  cache: `sudo apt install python3-libnvinfer libnvinfer-bin`, which also adds
+  `trtexec`. A dry run (`apt-get -s`) shows two new packages, no upgrades and
+  no removals, and needs no `apt update`.
+- **`torch.linalg` on CUDA fails** with `undefined symbol:
+  cusolverDnXsyevBatched_bufferSize`. The 2.8.0 wheel expects a newer cuSOLVER
+  than JetPack 6.2's 11.6.4. Matmul, convolution and attention are fine.
+  Run `inv`, `solve`, `svd` and `eigh` on CPU tensors. `hello_jetson.py` warns
+  about it.
+- **The current torch 2.8.0 wheel does not link cuDSS.** No library in it
+  references `libcudss`, so the cuDSS step is kept only to match Dr. Liu's
+  recipe. It is isolated and harmless.
+- **pip is guarded.** `~/lerobot-py310-cuda/pip.conf` applies
+  `constraints.txt` (torch 2.8.0, torchvision 0.23.0, torchaudio 2.8.0,
+  numpy<2). A `pip install` that would swap the Jetson torch for a PyPI build
+  now fails to resolve instead of succeeding silently. uv does not read
+  `pip.conf`, so for uv installs add
+  `--constraint ~/lerobot-py310-cuda/constraints.txt`.
+- pip is installed inside the CUDA venv too. Without it, a bare `pip` falls
+  through to `~/.local/bin/pip`, which belongs to the system Python.
+- The exact package sets are in [hardware/envs/](../../hardware/envs/).
 
 ## Path B: JetPack 7.x (L4T R39.x, Ubuntu 24.04)
 

@@ -1,0 +1,104 @@
+{
+  "schema": "latency/v1",
+  "label": "res-112-long",
+  "timestamp_utc": "2026-09-29T02:40:26.317831+00:00",
+  "config": {
+    "config_file": null,
+    "resolution": 112,
+    "action_chunk": 8,
+    "precision": "fp16",
+    "iters": 2000,
+    "warmup": 20,
+    "target_hz": 30.0
+  },
+  "latency": {
+    "n": 2000,
+    "mean_ms": 3.589173778503209,
+    "stdev_ms": 1.4462664993919687,
+    "min_ms": 1.20132400024886,
+    "p50_ms": 2.5742110001374385,
+    "p90_ms": 5.71165800010931,
+    "p99_ms": 6.451706000007107,
+    "max_ms": 7.093922000422026
+  },
+  "memory": {
+    "peak_allocated_gib": 0.009840011596679688,
+    "peak_reserved_gib": 0.0234375
+  },
+  "control_rate": {
+    "sustained_hz_at_p50": 3107.748354572673,
+    "worst_case_hz_at_p99": 1239.9821070568291,
+    "meets_budget": true
+  },
+  "power": {
+    "source": "ina3221 sysfs",
+    "interval_ms": 50.0,
+    "n_samples": 144,
+    "duration_s": 7.150157205000141,
+    "rail_voltage_mv": {
+      "VDD_IN": 5000,
+      "VDD_CPU_GPU_CV": 4984,
+      "VDD_SOC": 4992
+    },
+    "rails": {
+      "VDD_IN": {
+        "mean_w": 6.489722222222222,
+        "peak_w": 7.2
+      },
+      "VDD_CPU_GPU_CV": {
+        "mean_w": 1.5328568888888887,
+        "peak_w": 2.113216
+      },
+      "VDD_SOC": {
+        "mean_w": 1.7033813333333334,
+        "peak_w": 1.717248
+      }
+    },
+    "gpu_freq_mhz": {
+      "min": 306.0,
+      "max": 408.0
+    },
+    "tj_temp_c": {
+      "start": 54.281,
+      "max": 54.343
+    },
+    "energy_per_inference_j": 0.02329274082976958
+  },
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": null,
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 306000000,
+        "max_hz": 1020000000,
+        "cur_hz": 306000000,
+        "pinned": false
+      },
+      "cpu0": {
+        "min_khz": 729600,
+        "max_khz": 1728000,
+        "cur_khz": 1728000,
+        "pinned": false,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": false
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "3729b4fc26fba0d65ea9649548c5664bbcab0fbc",
+    "branch": "feat/jetson-bringup",
+    "dirty": false
+  },
+  "torch": {
+    "version": "2.8.0",
+    "cuda": "12.6"
+  }
+}
