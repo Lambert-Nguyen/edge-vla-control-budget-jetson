@@ -307,16 +307,20 @@ camera will still work, at a higher CPU and USB cost.
 Then measure what the loop will pay for it:
 
 ```bash
-python3 hardware/hello_camera.py            # MJPG 640x480@30 on the first camera
-python3 hardware/hello_camera.py --fourcc YUYV
+python3 hardware/hello_camera.py --list     # cameras the board sees, none opened
+python3 hardware/hello_camera.py --device /dev/v4l/by-id/<camera>-video-index0
+python3 hardware/hello_camera.py --device /dev/v4l/by-id/<camera>-video-index0 --fourcc YUYV
 ```
 
+`--device` is required. The board can see cameras that are not project
+hardware, such as the webcam built into the monitor it is plugged into, so the
+script never picks one on its own.
+
 It reports the achieved frame rate, capture CPU, and preprocessing time to a
-224x224 GPU tensor. Two findings from the first run with a Logitech BRIO:
-in a dim room, auto-exposure halves the frame rate to about 15 fps, which sits
-below a 30 Hz control budget, and `INTER_AREA` resizing from 1080p costs
-about 24 ms a frame. Light the workspace, and capture near the model's
-resolution.
+224x224 GPU tensor. Two things to watch for. In dim light many UVC webcams
+lengthen their exposure and fall well below 30 fps. Resizing large frames on
+the CPU is expensive too: on this board an `INTER_AREA` resize from 1080p takes
+about 12 ms. Light the workspace, and capture near the model's resolution.
 
 Stable names come for free for UVC cameras. udev already creates
 `/dev/v4l/by-id/usb-<vendor>_<model>_<serial>-video-index0`, keyed on the

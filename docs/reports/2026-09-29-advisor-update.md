@@ -18,19 +18,17 @@
 - **Our first measurement produced a methodology finding.** With clocks
   unpinned, the GPU governor hides compute cost as power. Latency stayed flat
   across a 36× increase in pixels while board power rose from 6.5 W to 14.9 W.
-- **The camera path is characterized** with a USB webcam. Lighting and
-  preprocessing both eat into a 30 Hz budget.
 - **The arm software is staged and pre-tested.** This caught a bug that would
   have stopped the arm's first test script on day one.
 - **The arm is not ordered.** The Hiwonder kit we planned to buy turns out to use
   Hiwonder's own servos, not the Feetech servos LeRobot is built around. **We
-  need your call on this before ordering** (section 6).
+  need your call on this before ordering** (section 5).
 
 ## 1. Status
 
 | Workstream | Status | Notes |
 | --- | --- | --- |
-| Arm purchase | **Open** | Not ordered. Hiwonder question in section 6 |
+| Arm purchase | **Open** | Not ordered. Hiwonder question in section 5 |
 | Board audit | Done | Re-audited 2026-09-28, no system-level changes |
 | Python environments | **Done** | Both envs built and verified, versions pinned |
 | Arm software | Staged | Tools installed and tested without hardware. Hardware steps wait for the arm |
@@ -56,7 +54,7 @@ Two things differed from what we expected on a provisioned board:
    `python3-libnvinfer` and `trtexec` (`libnvinfer-bin`) are not, so
    `import tensorrt` fails. Both are in the apt cache at the matching 10.3.0.30.
    A dry run shows 2 new packages, 0 upgrades and 0 removals, with no
-   `apt update` needed. We have not run it, because it needs sudo (section 7).
+   `apt update` needed. We have not run it, because it needs sudo (section 6).
 
 ## 3. Python environments
 
@@ -139,36 +137,7 @@ What this means for the project:
   able to throttle) is still open.
 - Energy per inference, not just latency, belongs in the trade-off curves.
 
-## 5. Camera path (Logitech BRIO on the board)
-
-`hardware/hello_camera.py` (new) measures the achieved frame rate, capture CPU
-and preprocessing time to a 224×224 GPU tensor. No frames are saved. The room
-was dark, and mean brightness was 3–4 out of 255.
-
-| Mode | Achieved fps (asked 30) | CPU, % of one core | Preprocess p50 (ms) |
-| --- | --- | --- | --- |
-| MJPG 640×480 | 16.2 | 26 | 8.4 (area) / 5.7 (linear) |
-| YUYV 640×480 | 16.3 | 29 | 7.3 |
-| MJPG 1280×720 | 15.1 | 42 | 15.7 |
-| MJPG 1920×1080 | 15.3 | 64 | 24.2 |
-
-- **Lighting is part of the control budget.** In low light, auto-exposure
-  stretched each exposure to 31–62 ms and capped the camera at about 15 fps,
-  half a 30 Hz loop. A 15.6 ms manual exposure brought it back to 27.7 fps.
-  The camera's auto settings were restored afterwards.
-- **Preprocessing is not free.** An `INTER_AREA` resize from 1080p alone takes
-  about 12 ms in a tight loop. In the live loop, total preprocessing reaches
-  24 ms, probably because the CPU clock drops while it waits for frames.
-  Capture near the model's resolution. The resize filter has to match the
-  policy's training pipeline, so it is an option, not a default change.
-- The BRIO sits on the USB 2.0 bus. MJPEG works up to 1080p30, but YUYV stops
-  at 640×480@30, which matters once two cameras and two arm adapters share the
-  hubs.
-- Cameras need no custom udev rules. The serial-keyed
-  `/dev/v4l/by-id/...-video-index0` path is stable, and LeRobot accepts it
-  together with `fourcc="MJPG"`.
-
-## 6. Decision needed: is the Hiwonder SO-ARM101 kit right for this project?
+## 5. Decision needed: is the Hiwonder SO-ARM101 kit right for this project?
 
 We had planned to buy the Hiwonder SO-ARM101 advanced kit, $459.99 on
 hiwonder.com and also sold on Amazon. Checking it against Hiwonder's own manual
@@ -215,11 +184,11 @@ in ways that matter for this project.
 3. Does the lab already have an SO-101 pair we could borrow? Is there a
    department purchase path, such as Amazon Business?
 
-## 7. What we need
+## 6. What we need
 
 **From you:**
 
-- The arm decision in section 6.
+- The arm decision in section 5.
 - OK for these admin changes on your board:
   - `sudo apt install --no-install-recommends python3-libnvinfer libnvinfer-bin`,
     which adds TensorRT Python and `trtexec` at 10.3.0.30, with no
@@ -240,20 +209,22 @@ power mode for the sweep.
 work, then run the power-mode check and re-run the resolution check with
 clocks pinned.
 
-## 8. Next steps (proposed, next two weeks)
+## 7. Next steps (proposed, next two weeks)
 
-1. Order the arm once section 6 is settled.
+1. Order the arm once section 5 is settled.
 2. Finish the harness checks with pinned clocks, and pick the sweep power
    mode.
-3. **A small VLA end to end on the Jetson**, SmolVLA through the
-   harness with camera frames and power, to shake out the plumbing before
-   Hy-VLA. This needs the `smolvla` extra and about 1 GB of weights.
+3. **A small VLA end to end on the Jetson**: SmolVLA through the harness with
+   power, on recorded frames first and on the kit's cameras once they arrive.
+   This shakes out the plumbing before Hy-VLA, and needs the `smolvla` extra
+   and about 1 GB of weights.
 4. Write the safety layer in `hardware/` before any closed-loop run: joint
    limits, a velocity cap using LeRobot's `max_relative_target`, and a watchdog.
 5. Secure the workstation. Install RoboTwin 2.0 there and take the FP16
    Hy-VLA reference baseline.
 6. Arm day, once it arrives: servo check, calibration, udev rules, teleop, and
-   10 throwaway episodes to exercise recording.
+   10 throwaway episodes to exercise recording. Measure the kit's cameras with
+   our camera test tool: frame rate, CPU cost and preprocessing time.
 
 ## Appendix A: fixes landed in the repo
 
@@ -279,5 +250,4 @@ Branch `feat/jetson-bringup`, awaiting teammate review:
 - `~/board-audit-2026-09-28.txt`.
 
 Nothing else changed. No sudo, no apt, no power-mode change, no container
-touched. The BRIO's exposure was changed briefly for one test and restored to
-auto.
+touched.

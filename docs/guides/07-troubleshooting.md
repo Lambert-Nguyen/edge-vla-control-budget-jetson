@@ -199,11 +199,10 @@ v4l2-ctl -d /dev/video0 --list-formats-ext
 ```
 
 **The camera delivers about 15 fps when you asked for 30.**
-Low light. UVC auto-exposure lengthens the exposure past the frame period and
-the frame rate drops with it, which a Logitech BRIO did on 2026-09-28: 15.5 fps
-in a dim room, back to 27.7 fps with a 15.6 ms manual exposure. Light the
-workspace, or fix the exposure in the camera config. `hardware/hello_camera.py`
-reports the achieved rate and mean brightness.
+Usually low light. UVC auto-exposure can lengthen the exposure past the frame
+period, and the frame rate drops with it. Light the workspace, or set a fixed
+exposure shorter than the frame period. `hardware/hello_camera.py` reports the
+achieved rate and mean brightness.
 
 **The CSI camera shows black in OpenCV.**
 CSI sensors (Arducam IMX219) emit raw Bayer, which OpenCV cannot decode. You
