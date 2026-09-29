@@ -12,10 +12,15 @@ uses, and measures what the policy loop will actually pay for:
 No frame is written to disk or displayed. The only image statistic reported is
 mean brightness, to catch a camera that streams black frames.
 
-    python3 hardware/hello_camera.py
+    python3 hardware/hello_camera.py --list
     python3 hardware/hello_camera.py --device /dev/v4l/by-id/usb-...-video-index0
-    python3 hardware/hello_camera.py --fourcc YUYV --width 640 --height 480
-    python3 hardware/hello_camera.py --json results/camera_brio_mjpg_640.json
+    python3 hardware/hello_camera.py --device ... --fourcc YUYV --width 640 --height 480
+    python3 hardware/hello_camera.py --device ... --json results/camera_wrist_mjpg_640.json
+
+--device is required. The board can see cameras that are not project hardware,
+such as the webcam built into the monitor it is plugged into, so the script
+never picks one on its own. --list shows what is attached without opening
+anything.
 
 Use the /dev/v4l/by-id path in LeRobot configs. It is keyed on the camera's
 serial number, so it survives reboots and replugging where /dev/videoN does not.
@@ -44,10 +49,20 @@ def summarize(values: list[float]) -> dict:
             "p99_ms": pct(values, 99), "max_ms": max(values)}
 
 
-def default_device() -> str:
-    # The first capture node of the first camera, by serial number.
-    hits = sorted(Path("/dev/v4l/by-id").glob("*-video-index0"))
-    return str(hits[0]) if hits else "/dev/video0"
+def list_cameras() -> list[tuple[str, str]]:
+    """(by-id path, device name) for the first capture node of each camera.
+
+    Reads symlinks and sysfs only. Nothing is opened, so no camera turns on.
+    """
+    cameras = []
+    for link in sorted(Path("/dev/v4l/by-id").glob("*-video-index0")):
+        node = link.resolve().name
+        try:
+            name = (Path("/sys/class/video4linux") / node / "name").read_text().strip()
+        except OSError:
+            name = "unknown"
+        cameras.append((str(link), f"{name}, {node}"))
+    return cameras
 
 
 def fourcc_name(code: float) -> str:
@@ -58,7 +73,9 @@ def fourcc_name(code: float) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--device", default=default_device())
+    parser.add_argument("--device", help="camera to measure, ideally its /dev/v4l/by-id path")
+    parser.add_argument("--list", action="store_true",
+                        help="list attached cameras without opening any, then exit")
     parser.add_argument("--fourcc", default="MJPG", help="MJPG or YUYV")
     parser.add_argument("--width", type=int, default=640)
     parser.add_argument("--height", type=int, default=480)
@@ -72,6 +89,17 @@ def main() -> int:
                              "area is ~3x slower than linear at 640x480, ~14x at 1080p")
     parser.add_argument("--json", type=Path, help="write the measurement record here")
     args = parser.parse_args()
+
+    if args.list or not args.device:
+        cameras = list_cameras()
+        print("cameras the board can see:" if cameras else "no cameras found under /dev/v4l/by-id")
+        for path, name in cameras:
+            print(f"  {path}\n      {name}")
+        if args.list:
+            return 0
+        print("\n[FAIL] pass --device with the project camera's path. Not every camera "
+              "the board sees is project hardware.", file=sys.stderr)
+        return 2
 
     try:
         import cv2
