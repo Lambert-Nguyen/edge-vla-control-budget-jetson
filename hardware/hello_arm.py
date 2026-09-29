@@ -13,10 +13,12 @@ Keep a hand on the servo power switch the first time you run this.
     # move the safest joint a little
     python3 hardware/hello_arm.py --port /dev/so101_follower --joint wrist_roll
 
-Units are LeRobot normalized position, not degrees. After calibration each
-joint spans roughly -100 to 100 (the gripper spans 0 to 100), where the range
-maps to the mechanical limits recorded during calibration. A delta of 5 is a
-small, visible nudge.
+Units follow the robot config. LeRobot 0.4 and 0.5 default to use_degrees=True,
+so the five body joints read in degrees from the calibrated midpoint and the
+gripper spans 0 to 100. A delta of 5 is a small, visible nudge either way.
+
+The arm must be calibrated first (guide 04 step 3). This script refuses to
+move an uncalibrated arm rather than dropping into the calibration prompt.
 """
 
 from __future__ import annotations
@@ -37,10 +39,17 @@ HEAVY_JOINTS = {"shoulder_pan", "shoulder_lift", "elbow_flex"}
 
 
 def import_robot():
-    """LeRobot moved these modules between 0.4.x and 0.5.x. Try both."""
+    """LeRobot has moved this module between releases. Try each layout."""
     try:
+        # 0.4.x and 0.5.x, the versions in ~/lerobot-py310-cuda and ~/lerobot-py312
+        from lerobot.robots.so_follower import SO101Follower, SO101FollowerConfig
+        return SO101Follower, SO101FollowerConfig, "lerobot.robots.so_follower"
+    except ImportError:
+        pass
+    try:
+        # 0.3.x
         from lerobot.robots.so101_follower import SO101Follower, SO101FollowerConfig
-        return SO101Follower, SO101FollowerConfig, "lerobot.robots"
+        return SO101Follower, SO101FollowerConfig, "lerobot.robots.so101_follower"
     except ImportError:
         pass
     try:
@@ -95,8 +104,9 @@ def main() -> int:
     parser.add_argument("--robot-id", default="so101_follower",
                         help="calibration id, must match what lerobot-calibrate wrote")
     parser.add_argument("--joint", default=DEFAULT_JOINT)
-    parser.add_argument("--delta", type=float, default=5.0,
-                        help="normalized position change, capped at %(default)s")
+    # --degrees is what guide 04 types. Both set the same value.
+    parser.add_argument("--delta", "--degrees", type=float, default=5.0,
+                        help=f"position change in robot units, capped at {MAX_DELTA:g}")
     parser.add_argument("--steps", type=int, default=40)
     parser.add_argument("--hz", type=float, default=30.0)
     parser.add_argument("--dwell", type=float, default=0.75,
@@ -123,10 +133,28 @@ def main() -> int:
     robot = SO101Follower(SO101FollowerConfig(port=args.port, id=args.robot_id))
 
     print(f"[..]   connecting to {args.port} as '{args.robot_id}'")
-    robot.connect()
+    try:
+        # calibrate=False: with no matching calibration, connect() would
+        # otherwise start the interactive calibration flow.
+        robot.connect(calibrate=False)
+    except Exception as exc:  # the serial layer raises several unrelated types
+        print(f"[FAIL] could not connect: {exc}", file=sys.stderr)
+        if "ermission" in str(exc):
+            print("       Add yourself to the dialout group, then log out and back in:\n"
+                  "         sudo usermod -aG dialout $USER", file=sys.stderr)
+        else:
+            print("       Check the port with `lerobot-find-port`, the USB cable, and that "
+                  "the arm's supply is on.", file=sys.stderr)
+        return 1
     print("[ok]   connected")
 
     try:
+        if not robot.is_calibrated:
+            print(f"[FAIL] '{args.robot_id}' is not calibrated, or its calibration does not "
+                  "match the motors. Run lerobot-calibrate first, guide 04 step 3.",
+                  file=sys.stderr)
+            return 1
+
         start = read_positions(robot)
         if not start:
             print("[FAIL] no '.pos' keys in the observation. Is the arm calibrated?",
