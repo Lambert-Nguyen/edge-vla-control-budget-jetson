@@ -172,7 +172,7 @@ say:
   installed, but `python3-libnvinfer` is not, so `import tensorrt` fails even
   with `--system-site-packages`. The matching package is already in the apt
   cache: `sudo apt install python3-libnvinfer libnvinfer-bin`, which also adds
-  `trtexec`. A dry run (`apt-get -s`) shows four new packages, no upgrades and
+  `trtexec`. A dry run (`apt-get -s`) shows two new packages, no upgrades and
   no removals, and needs no `apt update`.
 - **`torch.linalg` on CUDA fails** with `undefined symbol:
   cusolverDnXsyevBatched_bufferSize`. The 2.8.0 wheel expects a newer cuSOLVER

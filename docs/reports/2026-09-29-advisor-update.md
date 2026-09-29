@@ -55,7 +55,7 @@ Two things differed from what we expected on a provisioned board:
 2. **TensorRT's Python bindings are missing.** The runtime is installed, but
    `python3-libnvinfer` and `trtexec` (`libnvinfer-bin`) are not, so
    `import tensorrt` fails. Both are in the apt cache at the matching 10.3.0.30.
-   A dry run shows 4 new packages, 0 upgrades and 0 removals, with no
+   A dry run shows 2 new packages, 0 upgrades and 0 removals, with no
    `apt update` needed. We have not run it, because it needs sudo (section 7).
 
 ## 3. Python environments
@@ -257,8 +257,7 @@ clocks pinned.
 
 ## Appendix A: fixes landed in the repo
 
-Branch `feat/jetson-bringup`, 8 commits including this report, awaiting
-teammate review:
+Branch `feat/jetson-bringup`, awaiting teammate review:
 
 - `hello_latency.py` crashed after writing its record whenever `--out` was
   given.
