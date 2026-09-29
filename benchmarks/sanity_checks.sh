@@ -10,7 +10,7 @@
 # Run it as your normal user, from a terminal:
 #
 #   bash benchmarks/sanity_checks.sh
-#   bash benchmarks/sanity_checks.sh --dry-run   # no sudo, tiny runs, nothing kept
+#   bash benchmarks/sanity_checks.sh --dry-run   # no sudo, tiny runs, output deleted
 #
 # It asks for your sudo password once. Only nvpmodel and jetson_clocks run as
 # root. On exit, including Ctrl-C or a failure, it restores the power mode and
@@ -63,7 +63,7 @@ fi
 
 if [ "$DRY_RUN" -eq 1 ]; then
   DRY_OUT="$(mktemp -d)"
-  say "== DRY RUN: no sudo, no mode changes, 30-iteration runs written to $DRY_OUT"
+  say "== DRY RUN: no sudo, no mode changes, 30-iteration runs in $DRY_OUT, deleted at exit"
 else
   LOG="$HOME/sanity-checks-$(date +%Y%m%d-%H%M%S).log"
   exec > >(tee -a "$LOG") 2>&1
@@ -86,7 +86,7 @@ restore() {
   say "== restoring the board"
   if [ "$DRY_RUN" -eq 1 ]; then
     say "   (dry run) would switch back to mode $ORIG_MODE and restore the saved clocks"
-    rm -rf "$STATE_DIR"
+    rm -rf "$STATE_DIR" "$DRY_OUT"
     return
   fi
   sudo -v || true
