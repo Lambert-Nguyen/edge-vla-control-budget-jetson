@@ -246,7 +246,9 @@ def git_state() -> dict:
         "commit": g("rev-parse", "HEAD"),
         "branch": g("rev-parse", "--abbrev-ref", "HEAD"),
         # A measurement taken with uncommitted changes cannot be reproduced.
-        "dirty": bool(g("status", "--porcelain")),
+        # Records already written to results/ are output, not code. Counting
+        # them would mark every run after the first in a sweep as dirty.
+        "dirty": bool(g("status", "--porcelain", "--", ".", ":(exclude)results")),
     }
 
 
