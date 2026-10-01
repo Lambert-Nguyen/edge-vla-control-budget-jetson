@@ -169,8 +169,9 @@ tensorflow, protobuf 7) sits on `sys.path` ahead of the system packages.
 ├── hardware/       Jetson setup, arm calibration, teleoperation
 ├── configs/        YAML experiment configs for the sweep
 ├── results/        Measurement outputs (CSV/JSON only)
-├── docs/           Reports, meeting notes, paper drafts
+├── docs/           Reports, paper drafts
 │   └── guides/     Step-by-step setup and bring-up guides
+├── meetings/       Advisor and team meeting notes, one file per meeting
 ├── requirements.txt
 ├── CONTRIBUTING.md
 └── .github/        Issue and pull request templates
@@ -193,8 +194,11 @@ tensorflow, protobuf 7) sits on `sys.path` ahead of the system packages.
   reference the config that produced them.
 - **`results/`** — CSV/JSON only. Plots are regenerated from these files, not
   committed as source of truth.
-- **`docs/`** — 295A/295B reports, advisor meeting notes, figures, and paper
+- **`docs/`** — 295A/295B reports, figures, and paper
   drafts.
+- **`meetings/`** — one note per advisor or team meeting
+  (`YYYY-MM-DD-advisor.md`, `YYYY-MM-DD-team.md`), indexed in
+  [meetings/README.md](meetings/README.md).
 
 ### What this repo must never contain
 
