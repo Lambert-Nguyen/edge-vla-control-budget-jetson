@@ -7,7 +7,7 @@
 
 One note per meeting, named `YYYY-MM-DD-advisor.md` or `YYYY-MM-DD-team.md`, following the course template ([TEMPLATE.md](TEMPLATE.md)). Each note has five sections: accomplished since the last meeting, accomplished during the meeting, issues and blockers, action items, and plans for the next meeting. Action items name an owner and a due date, and the next note reports on them.
 
-Team-only meetings are informal discussions held in person, by text and in the team's Facebook Messenger group chat. Their start and end times were not recorded, and the notes say so. Credentials and door codes are never written here, because this repository is public.
+Team-only meetings are informal discussions held in person, by text and in the team's Facebook Messenger group chat. Their start and end times were not recorded, and the notes say so. Credentials and door codes are never written here, because this repository is public. Advisor-meeting photos are in [photos/](photos/), with location data removed.
 
 ## Meetings, Fall 2026
 
