@@ -20,6 +20,7 @@ Team-only meetings are informal discussions held in person, by text and in the t
 | 2026-09-22 | Team | Informal | Setup guides merged (PR #2). Board treated as pre-provisioned. SO-101-class arm chosen; lab arm loan requested | [notes](2026-09-22-team.md) |
 | 2026-09-28 | Team | Informal | Board environments verified. Harness checks; clocks locked for all experiments. Hiwonder servo issue found | [notes](2026-09-28-team.md) |
 | 2026-09-29 | Advisor | In person, office hours | 295A baseline / 295B paper plan. Simulate the follower first, then test on the lab arm. Buy own arms. Simulation on an RTX 4090. Lab access form | [notes](2026-09-29-advisor.md) |
+| 2026-10-07 | Team | Not recorded | Self-assembly versus fully assembled arm compared; no order yet. Lab configuration, admin approvals and experiment settings remain open. Simulator and SmolVLA status require verification (October 12 recap) | [notes](2026-10-07-team.md) |
 
 ## Advisor correspondence (email)
 
