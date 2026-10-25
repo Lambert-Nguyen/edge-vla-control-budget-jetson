@@ -20,6 +20,11 @@ Team-only meetings are informal discussions held in person, by text and in the t
 | 2026-09-22 | Team | Informal | Setup guides merged (PR #2). Board treated as pre-provisioned. SO-101-class arm chosen; lab arm loan requested | [notes](2026-09-22-team.md) |
 | 2026-09-28 | Team | Informal | Board environments verified. Harness checks; clocks locked for all experiments. Hiwonder servo issue found | [notes](2026-09-28-team.md) |
 | 2026-09-29 | Advisor | In person, office hours | 295A baseline / 295B paper plan. Simulate the follower first, then test on the lab arm. Buy own arms. Simulation on an RTX 4090. Lab access form | [notes](2026-09-29-advisor.md) |
+| 2026-10-07 | Team | Not recorded | Self-assembly versus fully assembled arm compared; no order yet. Lab configuration, admin approvals and experiment settings remain open. Simulator and SmolVLA status require verification (October 12 recap) | [notes](2026-10-07-team.md) |
+| 2026-10-14 | Team | Not recorded | Date confirmed; retrospective review draft ties S3 tools/access work and S4 baseline preparation to Workbook I. Discussion details need confirmation | [notes](2026-10-14-team.md) |
+| 2026-10-22 | Team / lab | In person, SJSU lab | Leader and follower checks, calibration, teleoperation and cameras worked with the Jetson; arm joint values read on the board. SmolVLA bring-up results traced to PR #6 | [notes](2026-10-22-team.md) |
+
+The October 14 and October 22 records were reconstructed on October 24 using the team's recap, repository evidence and *Project Workbook - Workbook I* (dated October 1), especially Chapters 3–5 and 8–9. Workbook targets are plans, not proof of completion. Proposed follow-up deadlines are labeled in each note. The October 22 lab session replaced that week's Wednesday meeting; it is not an advisor meeting.
 
 ## Advisor correspondence (email)
 
