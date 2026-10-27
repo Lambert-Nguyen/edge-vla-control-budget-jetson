@@ -17,7 +17,12 @@
 #   LEADER_PORT    leader serial port (default /dev/ttyACM1)
 #   FOLLOWER_ID    calibration name of the follower (default lab_follower)
 #   LEADER_ID      calibration name of the leader (default lab_leader)
-#   CAM1, CAM2     camera devices, /dev/v4l/by-id/... paths. CAM2 is optional
+#   CAM1           front camera: the Logitech Brio 4K on its stand. Needed for record and policy
+#   CAM2           wrist camera: the innomaker USB 3.0 module on the follower. Optional. Without
+#                  it the policy sees camera1 only
+#                  Both are /dev/v4l/by-id/...-video-index0 paths, listed by `check`. Plug each
+#                  camera straight into a USB 3 port on the Jetson, not a hub: `check` should
+#                  show 5000M for it, not 480M
 #   CAM_W, CAM_H, CAM_FPS   camera mode (default 640x480 at 30)
 #   FPS            control rate for demos and policy runs (default 30, the team's control
 #                  rate). Demos and the policy that learns from them must share it
@@ -30,13 +35,30 @@
 #                  so STEPS=5 roughly halves the pause (1.1 s to 0.7 s with two cameras)
 #
 # Example:
-#   CAM1=/dev/v4l/by-id/usb-XYZ-video-index0 TASK="Put the red cube in the box." \
-#     bash hardware/so101_lab.sh record cube_box 50
+#   CAM1=/dev/v4l/by-id/usb-046d_Logitech_BRIO_<serial>-video-index0 \
+#   CAM2=/dev/v4l/by-id/usb-<wrist camera>-video-index0 \
+#   TASK="Put the red cube in the box." bash hardware/so101_lab.sh record cube_box 50
 #
-# Cameras are named camera1 and camera2 because that is what lerobot/smolvla_base
-# expects, so demos, fine-tuning and the policy all use the same keys. Datasets
-# stay on the board under ~/.cache/huggingface/lerobot/local/ and are never
-# uploaded. The policy runs offline from the local model cache.
+# Cameras are named camera1 and camera2 because those are the keys lerobot/smolvla_base
+# expects, so demos, fine-tuning and the policy all use the same keys. In its training
+# data camera1 is a top view and camera2 a wrist view, so CAM1 is the front camera and
+# CAM2 the wrist camera. Datasets stay on the board under ~/.cache/huggingface/lerobot/local/
+# and are never uploaded. The policy runs offline from the local model cache.
+#
+# The Logitech Brio 4K as the front camera:
+#   - Put it high on its stand, looking down at the table, and mark where the stand sits.
+#     The view must be the same for the demos and for every policy run.
+#   - It shows up as four devices. Use the -video-index0 one, which is the color stream.
+#     If two Brios are connected, the serial number in the path tells them apart.
+#   - Turn off its autofocus, auto exposure and auto white balance before recording, or
+#     the picture changes from one episode to the next. The settings last until the camera
+#     is unplugged, so set them again after a replug. This needs v4l-utils
+#     (sudo apt install v4l-utils). Turn the automatic modes off first, then set values:
+#       v4l2-ctl -d "$CAM1" -c focus_automatic_continuous=0 -c auto_exposure=1 -c white_balance_automatic=0
+#       v4l2-ctl -d "$CAM1" -c focus_absolute=30 -c exposure_time_absolute=250 -c white_balance_temperature=4000
+#     These are start values. Adjust them while `preview` runs, and keep exposure_time_absolute
+#     at 333 or less (in 100 us units, so 33 ms), or the camera drops below 30 fps.
+#     `v4l2-ctl -d "$CAM1" -L` lists every control with its range.
 
 set -euo pipefail
 
@@ -119,7 +141,7 @@ PYEOF
     fi
     id -nG | grep -qw dialout && say "   $USER is in dialout" || say "   $USER is NOT in dialout"
     for p in "$FOLLOWER_PORT" "$LEADER_PORT"; do can_open "$p" && say "   $p: OK" || true; done
-    say "== cameras (use these paths for CAM1 and CAM2)"
+    say "== cameras (CAM1 = front camera, the Brio; CAM2 = wrist camera)"
     found_cam=0
     for cam in /dev/v4l/by-id/*-video-index0; do
       [ -e "$cam" ] || continue
@@ -135,7 +157,8 @@ PYEOF
       say "      ${speed}M, $note"
     done
     [ "$found_cam" -eq 1 ] || say "   none"
-    say "   Use project cameras only. A monitor with a built-in webcam shows up here too."
+    say "   Use project cameras only. A monitor with a built-in webcam shows up here too, and"
+    say "   two Brios differ only in the serial number in the path."
     say "== board"
     say "   $(nvpmodel -q 2>/dev/null | head -1), $(awk '/MemAvailable/ {printf "%.1f GiB RAM free", $2/1048576}' /proc/meminfo)"
     ;;
