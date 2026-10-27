@@ -19,6 +19,8 @@
 #   LEADER_ID      calibration name of the leader (default lab_leader)
 #   CAM1, CAM2     camera devices, /dev/v4l/by-id/... paths. CAM2 is optional
 #   CAM_W, CAM_H, CAM_FPS   camera mode (default 640x480 at 30)
+#   FPS            control rate for demos and policy runs (default 30, the team's control
+#                  rate). Demos and the policy that learns from them must share it
 #   TASK           the instruction, the same for every demo and for the policy
 #   EPISODE_S      seconds per episode (default 20), RESET_S between them (default 10)
 #   MAX_STEP       largest joint move per step when a policy drives, in degrees (default 3)
@@ -53,6 +55,7 @@ LEADER_ID="${LEADER_ID:-lab_leader}"
 CAM_W="${CAM_W:-640}"
 CAM_H="${CAM_H:-480}"
 CAM_FPS="${CAM_FPS:-30}"
+FPS="${FPS:-30}"
 TASK="${TASK:-Pick up the cube and put it in the box.}"
 EPISODE_S="${EPISODE_S:-20}"
 RESET_S="${RESET_S:-10}"
@@ -109,7 +112,8 @@ for repo in ["lerobot/smolvla_base", "HuggingFaceTB/SmolVLM2-500M-Video-Instruct
         print(f"   NOT CACHED: {repo} ({type(e).__name__}). Run hardware/hello_smolvla.py once with a network.")
 PYEOF
     say "== serial ports"
-    ls /dev/ttyACM* /dev/ttyUSB* 2>/dev/null | sed 's/^/   /' || say "   none. Plug in the arm's USB cable."
+    ports_found="$(ls /dev/ttyACM* /dev/ttyUSB* 2>/dev/null || true)"
+    if [ -n "$ports_found" ]; then printf '%s\n' "$ports_found" | sed 's/^/   /'; else say "   none. Plug in the arm's USB cable."; fi
     if [ -d /dev/serial/by-id ]; then
       for link in /dev/serial/by-id/*; do say "   $link -> $(readlink -f "$link")"; done
     fi
@@ -231,7 +235,7 @@ PYEOF
     say "Right arrow ends an episode early, left arrow redoes it, Esc stops. Saving takes about half a minute."
     limp_warning
     "$BIN/lerobot-record" "${follower[@]}" "$(cameras)" "${leader[@]}" \
-      --dataset.repo_id="local/$name" --dataset.single_task="$TASK" \
+      --dataset.repo_id="local/$name" --dataset.single_task="$TASK" --dataset.fps="$FPS" \
       --dataset.num_episodes="${3:-10}" --dataset.episode_time_s="$EPISODE_S" \
       --dataset.reset_time_s="$RESET_S" --dataset.push_to_hub=false --play_sounds=false "${resume[@]}"
     ;;
@@ -248,7 +252,7 @@ PYEOF
     "$BIN/lerobot-record" "${follower[@]}" "$(cameras)" \
       --robot.max_relative_target="$MAX_STEP" \
       --policy.path="$policy" --policy.device=cuda ${STEPS:+--policy.num_steps="$STEPS"} \
-      --dataset.repo_id="local/$name" --dataset.single_task="$TASK" \
+      --dataset.repo_id="local/$name" --dataset.single_task="$TASK" --dataset.fps="$FPS" \
       --dataset.num_episodes=1 --dataset.episode_time_s="$EPISODE_S" --dataset.reset_time_s=5 \
       --dataset.push_to_hub=false --play_sounds=false
     ;;
