@@ -10,6 +10,12 @@ derived control rate all captured in one machine-readable record.
     python3 benchmarks/hello_latency.py
     python3 benchmarks/hello_latency.py --iters 200 --resolution 224 --chunk 8
     python3 benchmarks/hello_latency.py --out results/baseline_dummy.json
+    python3 benchmarks/hello_latency.py --runtime tensorrt
+
+`--runtime tensorrt` exports the same model to ONNX, builds an FP16 TensorRT
+engine on this board, checks that the engine gives the same actions as
+PyTorch, and then times the engine in the same loop. The ONNX file and the
+engine go to build/engines/, which git ignores.
 
 Board power comes from the INA3221 rails in sysfs and needs no root. It is
 sampled only while the timed loop runs, so a run shorter than a couple of
@@ -35,6 +41,7 @@ import subprocess
 import sys
 import threading
 import time
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -42,6 +49,17 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Fewer power samples than this and the mean and peak are mostly noise.
 MIN_POWER_SAMPLES = 20
+
+# The board setting every sweep record is taken in, decided 2026-10-26. See
+# "Sweep setting" in README.md. Other modes are only for the power comparison.
+SWEEP_MODE = "MAXN_SUPER"
+
+# Engines and ONNX files are build output, never committed.
+ENGINE_DIR = REPO_ROOT / "build" / "engines"
+
+# TensorRT FP16 and PyTorch FP16 round differently. Past this share of the
+# largest action, the engine computes something else.
+TRT_MAX_REL_DIFF = 0.02
 
 
 def sh(cmd: list[str], timeout: int = 15) -> str | None:
@@ -286,6 +304,97 @@ def build_dummy_model(torch, resolution: int, chunk: int):
     return model, (image, state)
 
 
+class TensorRTPolicy:
+    """A PyTorch model exported to ONNX and built into a TensorRT engine here.
+
+    Engines only run on the GPU and TensorRT version they were built with, so
+    the build happens on the board, never on the workstation. The stand-in
+    model has random weights, so the engine is rebuilt from the same model
+    object on every run, and the actions can be compared one to one.
+
+    Calling it runs the engine on the bound input tensors, the same way the
+    harness calls a PyTorch model, so `measure` times both the same way.
+    """
+
+    INPUTS = ("image", "state")
+    OUTPUT = "actions"
+
+    def __init__(self, torch, model, inputs, name: str, workdir: Path = ENGINE_DIR):
+        import tensorrt as trt
+
+        workdir.mkdir(parents=True, exist_ok=True)
+        self.onnx_path = workdir / f"{name}.onnx"
+        self.engine_path = workdir / f"{name}.engine"
+
+        start = time.perf_counter()
+        # The TorchScript exporter. Torch 2.8 still defaults to it, and the
+        # newer dynamo exporter needs onnxscript, which this env does not have.
+        # Its "legacy exporter" notice is about torch 2.9 and says nothing here.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "You are using the legacy TorchScript",
+                                    DeprecationWarning)
+            torch.onnx.export(model, inputs, str(self.onnx_path), dynamo=False, opset_version=17,
+                              input_names=list(self.INPUTS), output_names=[self.OUTPUT])
+        self.export_s = time.perf_counter() - start
+
+        logger = trt.Logger(trt.Logger.WARNING)
+        builder = trt.Builder(logger)
+        network = builder.create_network(0)  # explicit batch, the only mode in TensorRT 10
+        parser = trt.OnnxParser(network, logger)
+        if not parser.parse_from_file(str(self.onnx_path)):
+            errors = "; ".join(str(parser.get_error(i)) for i in range(parser.num_errors))
+            raise RuntimeError(f"TensorRT could not parse {self.onnx_path}: {errors}")
+        config = builder.create_builder_config()
+        config.set_flag(trt.BuilderFlag.FP16)
+        start = time.perf_counter()
+        serialized = builder.build_serialized_network(network, config)
+        self.build_s = time.perf_counter() - start
+        if serialized is None:
+            raise RuntimeError("TensorRT engine build failed. The builder log above says why.")
+        self.engine_path.write_bytes(bytes(serialized))
+        self.engine_bytes = serialized.nbytes
+
+        self.runtime = trt.Runtime(logger)
+        self.engine = self.runtime.deserialize_cuda_engine(serialized)
+        self.context = self.engine.create_execution_context()
+        self.device_memory_bytes = (self.engine.device_memory_size_v2
+                                    if hasattr(self.engine, "device_memory_size_v2")
+                                    else self.engine.device_memory_size)
+        # Not the default stream: TensorRT adds a sync on every call there.
+        self.stream = torch.cuda.Stream()
+
+        to_torch = {trt.float16: torch.float16, trt.float32: torch.float32}
+        self.bound = {}
+        for name, tensor in zip(self.INPUTS, inputs):
+            want = to_torch[self.engine.get_tensor_dtype(name)]
+            self.bound[name] = tensor.to(want).contiguous()
+        out_dtype = to_torch[self.engine.get_tensor_dtype(self.OUTPUT)]
+        out_shape = tuple(self.context.get_tensor_shape(self.OUTPUT))
+        self.bound[self.OUTPUT] = torch.empty(out_shape, dtype=out_dtype, device="cuda")
+        for name, tensor in self.bound.items():
+            self.context.set_tensor_address(name, tensor.data_ptr())
+
+    def __call__(self, *_inputs):
+        # The inputs were bound by address in __init__. The harness feeds the
+        # same tensors every call, so there is nothing to copy here.
+        if not self.context.execute_async_v3(self.stream.cuda_stream):
+            raise RuntimeError("TensorRT execution failed")
+        return self.bound[self.OUTPUT]
+
+
+def check_engine(torch, model, engine, inputs) -> dict:
+    """Run PyTorch and the engine once on the same inputs and compare actions."""
+    with torch.no_grad():
+        want = model(*inputs).float()
+        got = engine(*inputs)
+        torch.cuda.synchronize()
+        got = got.float()
+    max_abs = (want - got).abs().max().item()
+    scale = want.abs().max().item()
+    return {"max_abs_diff": max_abs, "max_rel_diff": max_abs / scale if scale else None,
+            "ok": bool(scale) and max_abs / scale <= TRT_MAX_REL_DIFF}
+
+
 def measure(torch, model, inputs, iters: int, warmup: int,
             sampler: PowerSampler | None = None) -> list[float]:
     """Return per-iteration wall-clock latency in milliseconds.
@@ -347,8 +456,11 @@ def main() -> int:
                         help="action chunk length, used to derive control rate")
     parser.add_argument("--target-hz", type=float, default=30.0,
                         help="control rate the arm needs")
-    parser.add_argument("--label", default="dummy-fp16",
-                        help="short name for this configuration")
+    parser.add_argument("--runtime", choices=("pytorch", "tensorrt"), default="pytorch",
+                        help="run the model in PyTorch eager, or as a TensorRT engine built here")
+    parser.add_argument("--label", default=None,
+                        help="short name for this configuration "
+                             "(default: dummy-fp16, or dummy-trt-fp16 with --runtime tensorrt)")
     parser.add_argument("--config", default=None,
                         help="path to the YAML config this run came from")
     parser.add_argument("--out", type=Path, default=None,
@@ -358,6 +470,8 @@ def main() -> int:
     parser.add_argument("--no-power", action="store_true",
                         help="skip power sampling, e.g. to check it does not perturb latency")
     args = parser.parse_args()
+    if args.label is None:
+        args.label = "dummy-trt-fp16" if args.runtime == "tensorrt" else "dummy-fp16"
 
     try:
         import torch
@@ -379,6 +493,34 @@ def main() -> int:
     torch.cuda.reset_peak_memory_stats()
 
     model, inputs = build_dummy_model(torch, args.resolution, args.chunk)
+    trt_info = None
+    if args.runtime == "tensorrt":
+        try:
+            import tensorrt as trt
+        except ImportError:
+            print("[FAIL] tensorrt not importable. It is the system python3-libnvinfer "
+                  "package, so the venv needs --system-site-packages. Never pip install it.",
+                  file=sys.stderr)
+            return 1
+        engine = TensorRTPolicy(torch, model, inputs,
+                                f"{args.label}-{args.resolution}px-chunk{args.chunk}")
+        check = check_engine(torch, model, engine, inputs)
+        trt_info = {
+            "version": trt.__version__,
+            "onnx": str(engine.onnx_path.relative_to(REPO_ROOT)),
+            "engine": str(engine.engine_path.relative_to(REPO_ROOT)),
+            "engine_bytes": engine.engine_bytes,
+            "device_memory_bytes": engine.device_memory_bytes,
+            "export_s": engine.export_s,
+            "build_s": engine.build_s,
+            "check_against_pytorch": check,
+        }
+        if not check["ok"]:
+            print(f"[FAIL] the engine's actions differ from PyTorch's by "
+                  f"{check['max_abs_diff']:.4g} ({check['max_rel_diff']:.2%} of the largest), "
+                  f"more than {TRT_MAX_REL_DIFF:.0%}. Not timing a wrong engine.", file=sys.stderr)
+            return 1
+        model = engine
     samples = measure(torch, model, inputs, args.iters, args.warmup, sampler)
     stats = summarize(samples)
     power = sampler.summary() if sampler else None
@@ -405,12 +547,15 @@ def main() -> int:
             "config_file": args.config,
             "resolution": args.resolution,
             "action_chunk": args.chunk,
+            "runtime": args.runtime,
             "precision": "fp16",
             "iters": args.iters,
             "warmup": args.warmup,
             "target_hz": args.target_hz,
         },
         "latency": stats,
+        # PyTorch's allocator only. A TensorRT engine allocates its own memory,
+        # which is in tensorrt.engine_bytes and tensorrt.device_memory_bytes.
         "memory": {"peak_allocated_gib": peak_gb, "peak_reserved_gib": reserved_gb},
         "control_rate": {
             "sustained_hz_at_p50": sustained_hz,
@@ -422,10 +567,19 @@ def main() -> int:
         "git": git_state(),
         "torch": {"version": torch.__version__, "cuda": torch.version.cuda},
     }
+    if trt_info:
+        record["tensorrt"] = trt_info
 
     print("=" * 68)
-    print(f"{args.label}   {args.resolution}px   chunk={args.chunk}")
+    print(f"{args.label}   {args.resolution}px   chunk={args.chunk}   {args.runtime}")
     print("=" * 68)
+    if trt_info:
+        check = trt_info["check_against_pytorch"]
+        print(f"  engine          TensorRT {trt_info['version']}, built in {trt_info['build_s']:.1f} s,"
+              f" {trt_info['engine_bytes'] / 2**20:.1f} MiB, {trt_info['device_memory_bytes'] / 2**20:.1f}"
+              f" MiB working memory")
+        print(f"  vs PyTorch      max diff {check['max_abs_diff']:.4g}"
+              f" ({check['max_rel_diff']:.2%} of the largest action)")
     print(f"  p50 {stats['p50_ms']:7.2f} ms    p90 {stats['p90_ms']:7.2f} ms"
           f"    p99 {stats['p99_ms']:7.2f} ms")
     print(f"  mean {stats['mean_ms']:6.2f} ms    sd  {stats['stdev_ms']:7.2f} ms"
@@ -459,6 +613,11 @@ def main() -> int:
             and power["gpu_freq_mhz"]["min"] < gpu_clock["max_hz"] / 1e6):
         print("\n[warn] the GPU clock fell below its pinned value during the run. "
               "Thermal or power throttling, so this run is not comparable to a cold one.")
+
+    if board["nvpmodel_mode"] and (board["nvpmodel_mode"] != SWEEP_MODE
+                                   or not clocks["jetson_clocks_active"]):
+        print(f"\n[warn] not the sweep setting ({SWEEP_MODE}, jetson_clocks on). Fine for a "
+              f"check or the power comparison, not for a sweep point.")
 
     if record["git"]["dirty"]:
         print("\n[warn] working tree is dirty. This run cannot be reproduced from a "

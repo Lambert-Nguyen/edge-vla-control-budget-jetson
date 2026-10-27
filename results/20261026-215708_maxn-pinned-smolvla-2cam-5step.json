@@ -1,0 +1,139 @@
+{
+  "kind": "smolvla_bringup",
+  "timestamp": "2026-10-27T04:58:24.571377+00:00",
+  "config": {
+    "policy": "lerobot/smolvla_base",
+    "cameras": 2,
+    "camera": [],
+    "width": 640,
+    "height": 480,
+    "steps": 5,
+    "iters": 100,
+    "warmup": 3,
+    "task": "Pick up the cube and put it in the box.",
+    "no_power": false,
+    "json": "/home/sjsujetson/edge-vla/results/20261026-215708_maxn-pinned-smolvla-2cam-5step.json"
+  },
+  "policy": {
+    "path": "lerobot/smolvla_base",
+    "num_steps": 5,
+    "chunk_size": 50,
+    "n_action_steps": 50,
+    "image_keys": [
+      "observation.images.camera1",
+      "observation.images.camera2"
+    ],
+    "params_m": {
+      "bfloat16": 446.772624,
+      "float32": 3.273552
+    },
+    "load_s": 10.286982423999689
+  },
+  "latency": {
+    "chunk": {
+      "n": 100,
+      "mean_ms": 540.4318775700176,
+      "stdev_ms": 2.3603340560848283,
+      "min_ms": 536.6055230006168,
+      "p50_ms": 539.9417930002528,
+      "p90_ms": 543.9762870000777,
+      "p99_ms": 546.5702989995407,
+      "max_ms": 547.324555999694
+    },
+    "queued_step": {
+      "n": 49,
+      "mean_ms": 11.464424387742504,
+      "stdev_ms": 0.7875273345285632,
+      "min_ms": 10.6690479997269,
+      "p50_ms": 10.930909999842697,
+      "p90_ms": 12.557924000248022,
+      "p99_ms": 13.183793999814952,
+      "max_ms": 13.183793999814952
+    }
+  },
+  "memory": {
+    "gpu_after_load_gib": 0.8626227378845215,
+    "gpu_peak_allocated_gib": 0.9073982238769531,
+    "gpu_peak_reserved_gib": 0.951171875,
+    "ram_available_gib": {
+      "before_load": 4.606040954589844,
+      "after_load": 3.5551414489746094,
+      "after_runs": 3.4375572204589844
+    }
+  },
+  "power": {
+    "source": "ina3221 sysfs",
+    "interval_ms": 50.0,
+    "n_samples": 1087,
+    "duration_s": 54.30009132899977,
+    "rail_voltage_mv": {
+      "VDD_IN": 4976,
+      "VDD_CPU_GPU_CV": 4960,
+      "VDD_SOC": 4976
+    },
+    "rails": {
+      "VDD_IN": {
+        "mean_w": 11.53391938178473,
+        "peak_w": 12.53952
+      },
+      "VDD_CPU_GPU_CV": {
+        "mean_w": 4.535456853725851,
+        "peak_w": 5.237760000000001
+      },
+      "VDD_SOC": {
+        "mean_w": 3.058624058877645,
+        "peak_w": 3.18464
+      }
+    },
+    "gpu_freq_mhz": {
+      "min": 1020.0,
+      "max": 1020.0
+    },
+    "tj_temp_c": {
+      "start": 55.562,
+      "max": 58.031
+    }
+  },
+  "first_action": [
+    0.028,
+    0.041,
+    0.073,
+    -0.086,
+    0.037,
+    -0.176
+  ],
+  "finite": true,
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": "GPU MinFreq=1020000000 MaxFreq=1020000000 CurrentFreq=1020000000",
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 1020000000,
+        "max_hz": 1020000000,
+        "cur_hz": 1020000000,
+        "pinned": true
+      },
+      "cpu0": {
+        "min_khz": 1728000,
+        "max_khz": 1728000,
+        "cur_khz": 1728000,
+        "pinned": true,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": true
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "fc1a855c245955921adf37c0d30ffa116fed28b9",
+    "branch": "feat/tensorrt-first-engine",
+    "dirty": false
+  }
+}

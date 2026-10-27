@@ -1,0 +1,119 @@
+{
+  "schema": "latency/v1",
+  "label": "maxn-pinned-trt-224",
+  "timestamp_utc": "2026-10-27T04:52:18.660341+00:00",
+  "config": {
+    "config_file": null,
+    "resolution": 224,
+    "action_chunk": 8,
+    "runtime": "tensorrt",
+    "precision": "fp16",
+    "iters": 3000,
+    "warmup": 20,
+    "target_hz": 30.0
+  },
+  "latency": {
+    "n": 3000,
+    "mean_ms": 0.17739902233430863,
+    "stdev_ms": 0.05709636860439177,
+    "min_ms": 0.16397200033679837,
+    "p50_ms": 0.17440400006307755,
+    "p90_ms": 0.1808360002542031,
+    "p99_ms": 0.22112500028015347,
+    "max_ms": 3.0087740005910746
+  },
+  "memory": {
+    "peak_allocated_gib": 0.011733055114746094,
+    "peak_reserved_gib": 0.0234375
+  },
+  "control_rate": {
+    "sustained_hz_at_p50": 45870.50754057591,
+    "worst_case_hz_at_p99": 36178.63194964129,
+    "meets_budget": true
+  },
+  "power": {
+    "source": "ina3221 sysfs",
+    "interval_ms": 50.0,
+    "n_samples": 11,
+    "duration_s": 0.5000824980006655,
+    "rail_voltage_mv": {
+      "VDD_IN": 5000,
+      "VDD_CPU_GPU_CV": 4984,
+      "VDD_SOC": 4992
+    },
+    "rails": {
+      "VDD_IN": {
+        "mean_w": 9.814545454545454,
+        "peak_w": 10.76
+      },
+      "VDD_CPU_GPU_CV": {
+        "mean_w": 3.519610181818182,
+        "peak_w": 4.346048
+      },
+      "VDD_SOC": {
+        "mean_w": 2.7664756363636367,
+        "peak_w": 2.835456
+      }
+    },
+    "gpu_freq_mhz": {
+      "min": 1020.0,
+      "max": 1020.0
+    },
+    "tj_temp_c": {
+      "start": 52.375,
+      "max": 52.656
+    },
+    "energy_per_inference_j": 0.0017410907682919963
+  },
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": "GPU MinFreq=1020000000 MaxFreq=1020000000 CurrentFreq=1020000000",
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 1020000000,
+        "max_hz": 1020000000,
+        "cur_hz": 1020000000,
+        "pinned": true
+      },
+      "cpu0": {
+        "min_khz": 1728000,
+        "max_khz": 1728000,
+        "cur_khz": 1728000,
+        "pinned": true,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": true
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "fc1a855c245955921adf37c0d30ffa116fed28b9",
+    "branch": "feat/tensorrt-first-engine",
+    "dirty": false
+  },
+  "torch": {
+    "version": "2.8.0",
+    "cuda": "12.6"
+  },
+  "tensorrt": {
+    "version": "10.3.0",
+    "onnx": "build/engines/maxn-pinned-trt-224-224px-chunk8.onnx",
+    "engine": "build/engines/maxn-pinned-trt-224-224px-chunk8.engine",
+    "engine_bytes": 403340,
+    "device_memory_bytes": 1204224,
+    "export_s": 0.6109674100007396,
+    "build_s": 6.422943946000487,
+    "check_against_pytorch": {
+      "max_abs_diff": 0.0001220703125,
+      "max_rel_diff": 0.0008169934640522876,
+      "ok": true
+    }
+  }
+}
