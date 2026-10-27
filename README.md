@@ -109,7 +109,7 @@ Audited 2026-09-28:
 | OS / kernel | Ubuntu 22.04.5 LTS / 5.15.148-tegra |
 | CUDA | 12.6 (nvcc V12.6.68) |
 | cuDNN | 9.3.0.75 |
-| TensorRT | 10.3.0.30 runtime. Python bindings (`python3-libnvinfer`) and `trtexec` (`libnvinfer-bin`) are **not installed** yet |
+| TensorRT | 10.3.0.30. Python bindings (`python3-libnvinfer`) and `trtexec` (`libnvinfer-bin`, at `/usr/src/tensorrt/bin/trtexec`) installed 2026-10-26 |
 | Storage | 465.8 GB NVMe, root filesystem, 322 GB free |
 | Memory | 7.4 GiB unified, zram swap 6 × 635 MB, no NVMe swap |
 | `sjsujetsontool` | v1.0.0, container image `jetson-llm:v1` |
@@ -119,8 +119,30 @@ readable from `/sys/class/devfreq/17000000.gpu`, which is how the harness
 records clock state. Changing the mode or running `jetson_clocks` still needs
 sudo.
 
-> _TODO: the power mode the main sweep is taken in, once the team agrees.
-> [First benchmark](docs/guides/05-first-benchmark.md) suggests mode 1 (25 W)._
+#### Sweep setting
+
+Decided 2026-10-26. Every sweep record is taken in **mode 2, MAXN SUPER, with
+`jetson_clocks` on**, at a **30 Hz** control rate. Modes 0 and 1 are used
+only for the power comparison of the best configurations.
+
+- **Not mode 1.** [First benchmark](docs/guides/05-first-benchmark.md)
+  suggested 25 W, but `/etc/nvpmodel.conf` caps the CPU at 1.344 GHz in that
+  mode, below the 1.498 GHz of the 15 W mode and the 1.728 GHz of MAXN SUPER.
+  SmolVLA's chunk time is bound by the CPU thread that launches GPU work, so a
+  lower CPU cap makes every chunk slower.
+- **MAXN SUPER costs no extra energy per inference.** In the 2026-09-28
+  pinned checks at 1344 px, p50 was 12.60, 10.30 and 9.91 ms in modes 0, 1
+  and 2, at 155, 148 and 154 mJ per inference. The GPU held its pinned clock
+  in every run, with no throttling.
+- **Pinned clocks** because with the clocks scaling, latency stayed flat from
+  112 px to 672 px while board power rose from 6.5 W to 14.9 W.
+- **30 Hz** is LeRobot's recording default, and `hardware/so101_lab.sh`
+  records demos and runs policies at it. A policy has to run at the rate of
+  the demos it learned from.
+
+`benchmarks/hello_latency.py` warns when a run is not in this setting.
+`bash benchmarks/baseline_runs.sh` pins it, takes the baseline records, and
+puts the board back afterwards.
 
 ### 2. Python environment
 
