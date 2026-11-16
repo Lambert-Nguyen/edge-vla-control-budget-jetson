@@ -1,0 +1,66 @@
+<!--
+  Task scene for the team's lab task: "Pick up the cube and put it in the box."
+
+  The arm is DeepMind's MuJoCo Menagerie robotstudio_so101 model (so101.xml in
+  this folder, Apache-2.0, vendored unchanged). Its joint zeros sit at the middle
+  of each joint's range, the same convention LeRobot's SO-101 calibration uses.
+
+  World frame: the arm base is at the origin, the arm reaches along +x, +y is the
+  arm's left, +z is up. The table top is z = 0.
+
+  Positions and colours below are defaults. so101_sim/env.py moves the cube, the
+  box, the lights and camera1 at every reset, so do not tune the task here.
+-->
+<mujoco model="so101_cube_box">
+  <include file="so101.xml"/>
+
+  <statistic center="0.2 0 0.1" extent="0.6"/>
+
+  <visual>
+    <headlight diffuse="0.35 0.35 0.35" ambient="0.35 0.35 0.35" specular="0 0 0"/>
+    <global azimuth="145" elevation="-28" offwidth="1280" offheight="960"/>
+    <quality shadowsize="2048"/>
+    <map znear="0.01"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.80 0.82 0.85" rgb2="0.42 0.44 0.47" width="512" height="3072"/>
+    <texture name="table" type="2d" builtin="flat" rgb1="0.62 0.55 0.46" mark="random" random="0.05"
+      markrgb="0.52 0.46 0.38" width="512" height="512"/>
+    <material name="table" texture="table" texrepeat="3 3" reflectance="0.03"/>
+    <material name="box" rgba="0.55 0.40 0.25 1"/>
+    <material name="cube" rgba="0.85 0.12 0.10 1"/>
+  </asset>
+
+  <worldbody>
+    <light name="key" pos="0.35 -0.45 1.1" dir="-0.25 0.35 -1" diffuse="0.65 0.65 0.65" specular="0.1 0.1 0.1"
+      castshadow="true"/>
+    <light name="fill" pos="-0.4 0.5 0.9" dir="0.4 -0.5 -1" diffuse="0.25 0.25 0.25" specular="0 0 0"
+      castshadow="false"/>
+
+    <geom name="table" type="plane" size="0.55 0.55 0.01" pos="0.15 0 0" material="table"
+      friction="0.8 0.005 0.0001"/>
+
+    <!-- camera1 is the front camera (the Brio, high on its stand, looking down at the table).
+         env.py aims it from SimConfig.camera1_pos at SimConfig.camera1_target. -->
+    <camera name="camera1" pos="0.62 0 0.42" quat="1 0 0 0" fovy="52"/>
+    <!-- A fixed overview for the app's 3D view when the free camera is reset. -->
+    <camera name="overview" pos="0.75 -0.55 0.55" xyaxes="0.6 0.8 0 -0.38 0.28 0.88" fovy="45"/>
+
+    <!-- Open-top box. Static; env.py moves it by changing its body position. -->
+    <body name="box" pos="0.20 0.16 0">
+      <geom name="box_floor" type="box" size="0.055 0.055 0.003" pos="0 0 0.003" material="box"/>
+      <geom name="box_wall_px" type="box" size="0.003 0.055 0.021" pos="0.052 0 0.021" material="box"/>
+      <geom name="box_wall_nx" type="box" size="0.003 0.055 0.021" pos="-0.052 0 0.021" material="box"/>
+      <geom name="box_wall_py" type="box" size="0.049 0.003 0.021" pos="0 0.052 0.021" material="box"/>
+      <geom name="box_wall_ny" type="box" size="0.049 0.003 0.021" pos="0 -0.052 0.021" material="box"/>
+    </body>
+
+    <!-- 3 cm cube, about 30 g. -->
+    <body name="cube" pos="0.22 -0.05 0.015">
+      <freejoint name="cube"/>
+      <geom name="cube" type="box" size="0.015 0.015 0.015" material="cube" mass="0.03" condim="4"
+        friction="1.0 0.01 0.0001" solref="0.01 1"/>
+    </body>
+  </worldbody>
+</mujoco>

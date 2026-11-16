@@ -1,0 +1,90 @@
+# Checks the SO-101 simulator on Windows, macOS and Linux.
+# Runs when anything under sim/so101_sim/ changes, or by hand from the Actions tab.
+name: so101-sim
+
+on:
+  push:
+    paths: ["sim/so101_sim/**", ".github/workflows/so101-sim.yml"]
+  pull_request:
+    paths: ["sim/so101_sim/**", ".github/workflows/so101-sim.yml"]
+  workflow_dispatch:
+
+jobs:
+  core:
+    name: core (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: sim/so101_sim
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      - name: Unit tests (physics, units, expert, latency model)
+        run: python -m pytest -q tests/test_core.py
+      - name: Expert check without rendering
+        run: python -m so101_sim check --no-render --episodes 3
+      - name: Software OpenGL for rendering
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libegl-mesa0 libgl1-mesa-dri
+      - name: Rendering check (Linux, EGL)
+        if: runner.os == 'Linux'
+        env:
+          MUJOCO_GL: egl
+        run: python -m so101_sim check --width 160 --height 120 --episodes 1
+      - name: Rendering check (macOS, Windows)
+        # Hosted runners have no real GPU; a failure here says little about a laptop.
+        if: runner.os != 'Linux'
+        continue-on-error: true
+        run: python -m so101_sim check --width 160 --height 120 --episodes 1
+
+  record:
+    name: recording with LeRobot (${{ matrix.os }})
+    needs: core
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: sim/so101_sim
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[record,dev]"
+      - name: App logic and dataset writing (rendering stubbed out)
+        run: python -m pytest -q tests/test_app_logic.py
+
+  launchers:
+    name: launcher (${{ matrix.os }})
+    needs: core
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: run_app.bat from a clean folder
+        if: runner.os == 'Windows'
+        shell: cmd
+        env:
+          SO101_SIM_COMMAND: check
+        run: sim\so101_sim\run_app.bat --no-render --episodes 1
+      - name: run_app.command from a clean folder
+        if: runner.os == 'macOS'
+        env:
+          SO101_SIM_COMMAND: check
+        run: sim/so101_sim/run_app.command --no-render --episodes 1

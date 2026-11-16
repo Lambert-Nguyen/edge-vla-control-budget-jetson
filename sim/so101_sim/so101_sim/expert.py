@@ -1,0 +1,151 @@
+"""A scripted expert that picks the cube up and puts it in the box.
+
+It reads the true cube and box poses from the simulator once, at the start of the
+episode, and plays a fixed sequence of moves. Its actions are joint targets in
+LeRobot units, the same thing a leader arm sends, so its demonstrations can be
+recorded and trained on exactly like teleoperated ones.
+
+Each episode varies the speed, the approach height and small offsets, so that a
+policy trained on many expert demos does not see one memorised trajectory.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+
+import numpy as np
+
+from .env import SO101Env
+from .ik import ROLL, ArmIK
+from .units import GRIPPER_LO
+
+GRIP_OPEN = 0.65          # rad, about 65 mm between the jaws
+GRIP_CLOSED = GRIPPER_LO  # command fully closed; the cube stops the jaw
+
+
+def min_jerk(s: float) -> float:
+    s = min(max(s, 0.0), 1.0)
+    return s * s * s * (10 - 15 * s + 6 * s * s)
+
+
+@dataclass
+class Segment:
+    kind: str                  # "joint" (interpolate joints) or "cart" (straight tool line)
+    duration: float            # seconds
+    grip: float                # gripper target at the end, rad
+    end_pos: np.ndarray | None = None
+    end_q: np.ndarray | None = None
+
+
+class ScriptedExpert:
+    def __init__(self, env: SO101Env, rng: np.random.Generator | None = None,
+                 speed: float | None = None):
+        self.env = env
+        self.ik = ArmIK(env.model, env.qadr, env.dadr)
+        self.rng = rng or np.random.default_rng()
+        self.speed = speed if speed is not None else float(self.rng.uniform(0.8, 1.25))
+        self.dt = 1.0 / env.cfg.fps
+        self._plan()
+
+    # ------------------------------------------------------------------ planning
+
+    def _plan(self) -> None:
+        env, rng = self.env, self.rng
+        cube, yaw = env.cube_pose()
+        box = env.box_pos()
+        jitter = lambda s: rng.uniform(-s, s, 3) * np.array([1, 1, 0])  # noqa: E731
+        hover = rng.uniform(0.06, 0.09)
+        carry = rng.uniform(0.09, 0.12)
+        release = env.box_height + env.cube_half + rng.uniform(0.012, 0.025)
+
+        grasp = cube + jitter(0.002)
+        grasp[2] = cube[2]
+        above_cube = grasp + [0, 0, hover]
+        above_box = box + jitter(0.01)
+        above_box[2] = carry
+        drop = above_box.copy()
+        drop[2] = release
+        lift = grasp.copy()
+        lift[2] = carry
+
+        jaw_dir = np.array([math.cos(yaw), math.sin(yaw), 0.0])
+        q_start = env.qpos_arm()
+        q_hover, _ = self.ik.solve_topdown(q_start, above_cube, jaw_dir, roll_prefer=0.0)
+        self.roll = q_hover[ROLL]
+        q_home = env.home.copy()
+
+        s = 1.0 / self.speed
+        self.segments = [
+            Segment("joint", 1.6 * s, GRIP_OPEN, end_q=q_hover),
+            Segment("cart", 1.0 * s, GRIP_OPEN, end_pos=grasp),
+            Segment("cart", 0.6 * s, GRIP_CLOSED, end_pos=grasp),        # close
+            Segment("cart", 0.8 * s, GRIP_CLOSED, end_pos=lift),
+            Segment("cart", 1.3 * s, GRIP_CLOSED, end_pos=above_box),
+            Segment("cart", 0.6 * s, GRIP_CLOSED, end_pos=drop),
+            Segment("cart", 0.5 * s, GRIP_OPEN, end_pos=drop),           # release
+            Segment("cart", 0.5 * s, GRIP_OPEN, end_pos=above_box),
+            Segment("joint", 1.5 * s, float(q_home[5]), end_q=q_home),
+            Segment("joint", 0.5, float(q_home[5]), end_q=q_home),       # settle
+        ]
+        self._seg = 0
+        self._t = 0.0
+        self._q = q_start.copy()
+        self._seg_start_q = q_start.copy()
+        self._seg_start_pos, _ = self.ik.fk(q_start)
+        self._seg_start_grip = float(q_start[5])
+
+    def _solve(self, q_init: np.ndarray, pos: np.ndarray) -> tuple[np.ndarray, float]:
+        q = np.array(q_init, dtype=float)
+        q[ROLL] = self.roll
+        return self.ik.solve(q, pos, math.pi / 2)
+
+    # ------------------------------------------------------------------ acting
+
+    @property
+    def done(self) -> bool:
+        return self._seg >= len(self.segments)
+
+    @property
+    def total_steps(self) -> int:
+        return int(math.ceil(sum(seg.duration for seg in self.segments) / self.dt))
+
+    def act(self) -> np.ndarray:
+        """Next action in LeRobot units. Holds the last target once done."""
+        if self.done:
+            return self.env.jmap.to_lerobot(self._q)
+        seg = self.segments[self._seg]
+        self._t += self.dt
+        s = min_jerk(self._t / seg.duration)
+        if seg.kind == "joint":
+            q = self._seg_start_q + s * (seg.end_q - self._seg_start_q)
+        else:
+            pos = self._seg_start_pos + s * (seg.end_pos - self._seg_start_pos)
+            q, _ = self._solve(self._q, pos)
+        q[5] = self._seg_start_grip + s * (seg.grip - self._seg_start_grip)
+        self._q = q
+        if self._t >= seg.duration - 1e-9:
+            self._seg += 1
+            self._t = 0.0
+            self._seg_start_q = q.copy()
+            self._seg_start_pos, _ = self.ik.fk(q)
+            self._seg_start_grip = float(q[5])
+        return self.env.jmap.to_lerobot(q)
+
+
+def run_expert_episode(env: SO101Env, seed: int, render: bool = False, extra_s: float = 0.0):
+    """Reset with seed and let the expert play. Yields (obs_before, action) per step.
+
+    The caller observes after each step through env; this keeps rendering optional.
+    """
+    rng = np.random.default_rng(seed)
+    obs = env.reset(seed=seed, render=render)
+    expert = ScriptedExpert(env, rng)
+    n = expert.total_steps + int(extra_s * env.cfg.fps)
+    for _ in range(n):
+        action = expert.act()
+        yield obs, action
+        obs = env.step(action, render=render)
+
+
+__all__ = ["ScriptedExpert", "run_expert_episode", "GRIP_OPEN", "GRIP_CLOSED"]

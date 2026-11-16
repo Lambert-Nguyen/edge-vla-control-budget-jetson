@@ -20,7 +20,7 @@ with embedded boards, servos, or LeRobot.
 - [Python environments](docs/guides/03-python-environments.md). The Jetson torch wheel problem and how to avoid it.
 - [Arm bring-up](docs/guides/04-arm-bringup.md). Servo IDs, calibration, teleoperation, safety.
 - [First benchmark](docs/guides/05-first-benchmark.md). The measurement harness.
-- [Model and simulation](docs/guides/06-model-and-simulation.md). Hy-Embodied-0.5-VLA and RoboTwin 2.0.
+- [Model and simulation](docs/guides/06-model-and-simulation.md). Hy-Embodied-0.5-VLA, RoboTwin 2.0, and the SO-101 simulator.
 - [Troubleshooting](docs/guides/07-troubleshooting.md)
 
 ---
@@ -54,7 +54,9 @@ This project characterizes that trade-off space and then optimizes against it:
 2. **Optimize** via post-training quantization and TensorRT compilation,
    sweeping precision, resolution, and action-chunk length.
 3. **Evaluate** task success in RoboTwin 2.0, so that any speedup is reported
-   alongside its accuracy cost rather than in isolation.
+   alongside its accuracy cost rather than in isolation. For our own
+   single-arm task, the SO-101 simulator in `sim/so101_sim/` measures success
+   with the Jetson's measured latency injected.
 4. **Validate** the selected operating points on a physical SO-101 arm, where
    real sensing and actuation latency are in the loop.
 
@@ -165,7 +167,16 @@ fails instead of silently going CPU-only.
 `vla` also sets `PYTHONNOUSERSITE=1`. Without it, `~/.local` (numpy 2.2.6,
 tensorflow, protobuf 7) sits on `sys.path` ahead of the system packages.
 
-### 3. RoboTwin 2.0 simulation
+### 3. Simulation
+
+**SO-101 simulator.** MuJoCo, on Windows, macOS and Linux. Run the launcher in
+`sim/so101_sim/` (`run_app.bat`, `run_app.command` or `run_app.sh`); the first
+run builds its own environment with LeRobot 0.5 (tested on 0.5.1) on Python 3.12. It records
+LeRobot datasets with the same features as `hardware/so101_lab.sh`, and `eval`
+writes success records to `results/` with chunk latency taken from a harness
+record. See [sim/so101_sim/README.md](sim/so101_sim/README.md).
+
+**RoboTwin 2.0.**
 
 > _TODO: RoboTwin 2.0 install, asset download, and the task subset used for
 > evaluation._
@@ -187,7 +198,8 @@ tensorflow, protobuf 7) sits on `sys.path` ahead of the system packages.
 .
 ├── src/            Inference, quantization, and TensorRT compilation code
 ├── benchmarks/     Latency, control-rate, memory, and power harnesses
-├── sim/            RoboTwin 2.0 evaluation scripts
+├── sim/            RoboTwin 2.0 evaluation scripts, and so101_sim/: the SO-101
+│                   MuJoCo simulator (Windows, macOS, Linux)
 ├── hardware/       Jetson setup, arm calibration, teleoperation
 ├── configs/        YAML experiment configs for the sweep
 ├── results/        Measurement outputs (CSV/JSON only)
@@ -196,7 +208,7 @@ tensorflow, protobuf 7) sits on `sys.path` ahead of the system packages.
 ├── meetings/       Advisor and team meeting notes, one file per meeting
 ├── requirements.txt
 ├── CONTRIBUTING.md
-└── .github/        Issue and pull request templates
+└── .github/        Issue and pull request templates, the simulator's CI workflow
 ```
 
 ### What goes where
@@ -209,6 +221,8 @@ tensorflow, protobuf 7) sits on `sys.path` ahead of the system packages.
   measurement logic separate from the inference code it measures.
 - **`sim/`** — RoboTwin 2.0 task setup, rollout drivers, and success-rate
   scoring.
+  [`sim/so101_sim/`](sim/so101_sim/README.md) simulates our single-arm cube-to-box
+  task: demo recording, and closed-loop success under the Jetson's measured latency.
 - **`hardware/`** — board provisioning scripts, arm calibration, teleoperation
   and demonstration capture, and the safety limits used on the physical arm.
 - **`configs/`** — one YAML per sweep point (precision × resolution × action
