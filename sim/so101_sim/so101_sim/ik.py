@@ -113,6 +113,46 @@ class ArmIK:
             q[idx] = np.clip(q[idx] + dq, self.lo[idx], self.hi[idx])
         return q, err
 
+    def solve_steepest(self, q_init: np.ndarray, target: np.ndarray, pitch: float = math.pi / 2,
+                       min_pitch: float = math.radians(30), tol: float = 1e-3,
+                       iters: int = 10) -> tuple[np.ndarray, float, float]:
+        """Reach target exactly at the steepest pitch up to `pitch` the joint limits allow.
+
+        Pointing the jaws straight down at a point high above, or far from, the base
+        needs more wrist_flex than the joint has. solve() then returns a compromise
+        that misses the position by centimetres. This tilts the jaws instead: it
+        lowers the pitch in small steps, each solve starting from the previous one
+        so the arm stays in the same configuration (a cold solve at a shallow pitch
+        can flip to another one, e.g. shoulder_lift at its limit), then bisects the
+        last step for the steepest pitch with a position error under tol.
+
+        Returns (q, pitch, position error). If even min_pitch cannot reach the
+        target, returns the closest attempt.
+        """
+        q, err = self.solve(q_init, target, pitch)
+        if err < tol:
+            return q, pitch, err
+        best = (q, pitch, err)
+        hi, q_hi = pitch, q
+        p = pitch
+        while p > min_pitch + 1e-9:
+            p = max(p - math.radians(5), min_pitch)
+            q_p, err_p = self.solve(q_hi, target, p)
+            if err_p < tol:
+                lo, best = p, (q_p, p, err_p)
+                for _ in range(iters):
+                    mid = 0.5 * (lo + hi)
+                    q_mid, err_mid = self.solve(q_hi, target, mid)
+                    if err_mid < tol:
+                        lo, best = mid, (q_mid, mid, err_mid)
+                    else:
+                        hi = mid
+                return best
+            if err_p < best[2]:
+                best = (q_p, p, err_p)
+            hi, q_hi = p, q_p
+        return best
+
     def roll_for_jaw_axis(self, q: np.ndarray, direction: np.ndarray,
                           symmetric: int = 4, prefer: float | None = None) -> float:
         """wrist_roll that lines the jaw axis up with a horizontal direction.

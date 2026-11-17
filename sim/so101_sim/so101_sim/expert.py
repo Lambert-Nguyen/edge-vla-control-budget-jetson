@@ -36,6 +36,7 @@ class Segment:
     grip: float                # gripper target at the end, rad
     end_pos: np.ndarray | None = None
     end_q: np.ndarray | None = None
+    pitch: float = math.pi / 2  # "cart": jaw pitch at the end, below horizontal
 
 
 class ScriptedExpert:
@@ -71,7 +72,14 @@ class ScriptedExpert:
 
         jaw_dir = np.array([math.cos(yaw), math.sin(yaw), 0.0])
         q_start = env.qpos_arm()
-        q_hover, _ = self.ik.solve_topdown(q_start, above_cube, jaw_dir, roll_prefer=0.0)
+        q_hover, err = self.ik.solve_topdown(q_start, above_cube, jaw_dir, roll_prefer=0.0)
+        if err > 1e-3:
+            # Straight down at hover height needs more wrist_flex than the joint has
+            # (far cubes), and solve_topdown's compromise misses the point by up to
+            # 2-3 cm. The descent would then come in at a slant and the fixed jaw land
+            # on the cube's edge, so hover exactly over the cube, tilted as little as
+            # needed. Starting from the compromise keeps the same arm configuration.
+            q_hover, _, _ = self.ik.solve_steepest(q_hover, above_cube)
         self.roll = q_hover[ROLL]
         q_home = env.home.copy()
 
@@ -88,17 +96,29 @@ class ScriptedExpert:
             Segment("joint", 1.5 * s, float(q_home[5]), end_q=q_home),
             Segment("joint", 0.5, float(q_home[5]), end_q=q_home),       # settle
         ]
+        # Carry and drop points over a far box are out of reach with the jaws
+        # straight down; tilt them as little as needed so the cube goes where planned.
+        q = q_hover.copy()
+        for seg in self.segments:
+            if seg.kind == "cart":
+                q, seg.pitch, _ = self.ik.solve_steepest(q, seg.end_pos)
+            else:
+                q = seg.end_q.copy()
         self._seg = 0
         self._t = 0.0
         self._q = q_start.copy()
-        self._seg_start_q = q_start.copy()
-        self._seg_start_pos, _ = self.ik.fk(q_start)
         self._seg_start_grip = float(q_start[5])
+        self._start_segment(q_start)
 
-    def _solve(self, q_init: np.ndarray, pos: np.ndarray) -> tuple[np.ndarray, float]:
+    def _start_segment(self, q: np.ndarray) -> None:
+        self._seg_start_q = q.copy()
+        self._seg_start_pos, R = self.ik.fk(q)
+        self._seg_start_pitch = self.ik.pitch_of(R, self.ik._radial(self._seg_start_pos))
+
+    def _solve(self, q_init: np.ndarray, pos: np.ndarray, pitch: float = math.pi / 2) -> tuple[np.ndarray, float]:
         q = np.array(q_init, dtype=float)
         q[ROLL] = self.roll
-        return self.ik.solve(q, pos, math.pi / 2)
+        return self.ik.solve(q, pos, pitch)
 
     # ------------------------------------------------------------------ acting
 
@@ -121,14 +141,15 @@ class ScriptedExpert:
             q = self._seg_start_q + s * (seg.end_q - self._seg_start_q)
         else:
             pos = self._seg_start_pos + s * (seg.end_pos - self._seg_start_pos)
-            q, _ = self._solve(self._q, pos)
+            dp = seg.pitch - self._seg_start_pitch
+            pitch = seg.pitch if abs(dp) < 2e-3 else self._seg_start_pitch + s * dp
+            q, _ = self._solve(self._q, pos, pitch)
         q[5] = self._seg_start_grip + s * (seg.grip - self._seg_start_grip)
         self._q = q
         if self._t >= seg.duration - 1e-9:
             self._seg += 1
             self._t = 0.0
-            self._seg_start_q = q.copy()
-            self._seg_start_pos, _ = self.ik.fk(q)
+            self._start_segment(q)
             self._seg_start_grip = float(q[5])
         return self.env.jmap.to_lerobot(q)
 

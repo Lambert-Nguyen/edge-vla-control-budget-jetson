@@ -113,3 +113,39 @@ def test_expert_as_policy_succeeds_at_jetson_latency(env):
 def test_wilson_interval():
     lo, hi = wilson(45, 50)
     assert 0.78 < lo < 0.80 and 0.95 < hi < 0.97
+
+
+# Layouts the expert used to fail: the cube or box far enough out that pointing the
+# jaws straight down at hover or carry height needs more wrist_flex than the joint
+# has. The fixed jaw then landed on the cube, or the cube on the box rim.
+@pytest.mark.parametrize("level,seed", [("light", 243), ("light", 273), ("light", 315), ("light", 337),
+                                        ("full", 256), ("full", 323), ("full", 100250)])
+def test_expert_handles_far_layouts(level, seed):
+    e = SO101Env(SimConfig(randomize=level), render=False)
+    for _ in run_expert_episode(e, seed, extra_s=0.5):
+        pass
+    assert e.is_success()
+
+
+def test_steepest_pitch_reaches_exactly_and_keeps_the_arm_configuration(env):
+    from so101_sim.ik import LIFT, ArmIK
+    ik = ArmIK(env.model, env.qadr, env.dadr)
+    env.reset(seed=0, render=False)
+    q0 = env.qpos_arm()
+    target = np.array([0.23, 0.19, 0.12])          # carry height over a far box
+    _, err_down = ik.solve(q0, target, math.pi / 2)
+    q, pitch, err = ik.solve_steepest(q0, target)
+    assert err_down > 0.01                          # straight down is out of reach
+    assert err < 1e-3 and math.radians(45) < pitch < math.pi / 2
+    assert q[LIFT] > ik.lo[LIFT] + 0.2             # not flipped to shoulder_lift at its limit
+    near = np.array([0.20, 0.0, 0.05])              # reachable straight down: unchanged
+    q_n, pitch_n, _ = ik.solve_steepest(q0, near)
+    assert pitch_n == math.pi / 2 and np.allclose(q_n, ik.solve(q0, near, math.pi / 2)[0])
+
+
+def test_policy_label():
+    from so101_sim.cli import policy_label
+    assert policy_label("outputs/train/smolvla_sim/checkpoints/020000/pretrained_model") == "smolvla_sim-020000"
+    assert policy_label("outputs\\train\\act\\checkpoints\\last\\pretrained_model\\") == "act-last"
+    assert policy_label("lerobot/smolvla_base") == "smolvla_base"
+    assert policy_label("expert") == "expert"

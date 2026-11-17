@@ -44,6 +44,11 @@ STATIC_FILES = {"index.html": "text/html; charset=utf-8", "app.js": "text/javasc
                 "style.css": "text/css; charset=utf-8"}
 STREAMS = ("view", "camera1", "camera2")
 KEY_TIMEOUT_S = 0.6           # forget held keys if the browser stops reporting them
+# Rendering is most of a tick (the arm meshes are ~400k triangles; resolution barely
+# matters). camera1/camera2 are rendered every step only when something uses them,
+# recording or a policy; otherwise the page gets them as previews at this rate.
+CAM_PREVIEW_HZ = 10.0
+VIEW_HZ_RECORDING = 10.0      # the 3D view's rate while recording, to keep 30 Hz
 WORKSPACE = (np.array([0.02, -0.38, 0.0]), np.array([0.42, 0.38, 0.38]))
 
 
@@ -136,6 +141,8 @@ class SimApp:
         self.saved_episodes = 0
         self.ui_period = 1.0 / max(ui_hz, 1.0)
         self._last_ui = 0.0
+        self._last_cam_preview = 0.0
+        self._slow_warned = False
         self._tick_times: deque[float] = deque(maxlen=60)
         self.last_action = self.env.state()
         self.cam = mujoco.MjvCamera()
@@ -299,15 +306,24 @@ class SimApp:
         self.new_scene()
         self.recording = True
         self.ep_frames = 0
+        self._slow_warned = False
         self.log(f"recording episode {self.saved_episodes} (seed {self.seed})")
 
-    def save_episode(self, reset: bool = True) -> None:
+    def save_episode(self, reset: bool = True) -> bool:
+        """Save the episode being recorded. Returns whether one was written."""
         if not self.recording:
-            return
+            return False
         self.recording = False
         if self.ep_frames == 0:
-            return
-        self.saved_episodes = self.rec.save_episode()
+            return False
+        try:
+            self.saved_episodes = self.rec.save_episode()
+        except Exception as e:
+            traceback.print_exc()
+            self.log(f"could not save the episode ({e}); it was discarded, the dataset is unchanged")
+            if reset:
+                self.new_scene()
+            return False
         # Finalize after every episode so the dataset on disk is always valid, even
         # if this window is closed or the process killed. The next episode reopens it.
         self.rec.finalize()
@@ -316,6 +332,7 @@ class SimApp:
                  f"{self.saved_episodes} in {self.dataset_name}")
         if reset:
             self.new_scene()
+        return True
 
     def discard_episode(self, reset: bool = True) -> None:
         if not self.recording:
@@ -347,9 +364,9 @@ class SimApp:
                 ok = self.env.is_success()
                 self.batch_stats[1] += 1
                 if ok:
-                    self.batch_stats[0] += 1
-                    self.batch_left -= 1
-                    self.save_episode(reset=False)
+                    if self.save_episode(reset=False):
+                        self.batch_stats[0] += 1
+                        self.batch_left -= 1
                 else:
                     self.discard_episode(reset=False)
                     self.log("expert missed; demo discarded")
@@ -455,6 +472,15 @@ class SimApp:
         hz = (len(self._tick_times) - 1) / (self._tick_times[-1] - self._tick_times[0]) \
             if len(self._tick_times) > 2 else 0.0
         ex = self.executor if self.mode == "policy" else None
+        if (self.recording and self.mode == "leader" and not self._slow_warned and not self.fast
+                and len(self._tick_times) == self._tick_times.maxlen and hz < 0.9 * self.cfg.fps):
+            # Keyboard, expert and policy all move in simulated time, but a person on
+            # the leader arm moves in wall time: each tick is stored as 1/fps s, so
+            # running slow records their motion sped up.
+            self._slow_warned = True
+            self.log(f"warning: the simulator runs at {hz:.0f} Hz, below {self.cfg.fps} Hz, so this "
+                     f"demo plays back {self.cfg.fps / max(hz, 1):.1f}x faster than you moved. "
+                     "Closing other apps that use the GPU helps")
         st = {
             "mode": self.mode, "paused": self.paused, "fast": self.fast,
             "seed": self.seed, "step": self.step, "sim_time": self.step / self.cfg.fps,
@@ -483,7 +509,15 @@ class SimApp:
             self.status = st
 
     def tick(self) -> None:
-        obs = self.env.observe(render=True)
+        now = time.perf_counter()
+        ui_period = 0.25 if self.fast else self.ui_period
+        if self.recording:
+            ui_period = max(ui_period, 1.0 / VIEW_HZ_RECORDING)
+        ui_due = now - self._last_ui >= ui_period
+        preview_due = ui_due and now - self._last_cam_preview >= 1.0 / CAM_PREVIEW_HZ
+        obs = self.env.observe(render=self.recording or self.mode == "policy" or preview_due)
+        if preview_due:
+            self._last_cam_preview = now
         action = self.control(obs)
         if self.recording:
             self.rec.add(obs, action)
@@ -491,9 +525,8 @@ class SimApp:
         self.last_action = action
         self.step += 1
         self.after_step()
-        now = time.perf_counter()
-        self._tick_times.append(now)
-        if now - self._last_ui >= (self.ui_period if not self.fast else 0.25):
+        self._tick_times.append(time.perf_counter())
+        if ui_due:
             self._last_ui = now
             self.publish(obs)
             self.update_status(action)

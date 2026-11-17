@@ -70,6 +70,15 @@ the joint readout in LeRobot units.
 | Expert | The scripted expert does the task on the current layout |
 | Policy | A checkpoint drives the arm with a chosen latency, sync or async |
 
+The header shows the simulator's rate. Rendering is nearly all of the cost
+(about 14 ms per camera image on an M-series Mac, mostly the arm's meshes, not
+the resolution), so `camera1` and `camera2` refresh in the page at 10 Hz unless
+you are recording or running a policy, and the 3D view drops to 10 Hz while
+recording. Recordings are in simulated time, so a slow computer only makes
+keyboard, expert and policy episodes take longer. With the leader arm it changes
+the data: you move in real time, so below 30 Hz your motion is stored sped up, and
+the log says so.
+
 **Recording** works like `lerobot-record`: *Record episode* starts from a fresh
 layout, <kbd>→</kbd> saves, <kbd>←</kbd> discards, and an episode saves itself at
 the time limit (20 s). *Record expert demos* records N successful expert demos in
@@ -86,8 +95,11 @@ python -m so101_sim generate --name sim_cube_box --episodes 200 --randomize full
 ```
 
 Layout seeds start at 0 and each episode's seed is logged in
-`meta/so101_sim_episodes.jsonl`. Only successful episodes are kept; the expert
-succeeds on 150/150 layouts at both `light` and `full` randomization.
+`meta/so101_sim_episodes.jsonl`. Only successful episodes are kept. The expert
+succeeded on all 3,100 layouts checked (seeds 0–1399 at `light`, 0–1399 and
+100000–100299 at `full`). Over a far box, or above a far cube, it tilts the jaws a
+little off vertical, because pointing them straight down there needs more
+`wrist_flex` than the joint has.
 
 **2. Train on the workstation.** Copy the dataset folder to the RTX 4090 machine,
 then fine-tune as with real data, for example SmolVLA:
@@ -102,6 +114,10 @@ lerobot-train --policy.path=lerobot/smolvla_base \
 The camera keys are already `camera1` and `camera2`, the names `smolvla_base`
 expects, so no renaming is needed.
 
+LeRobot decodes the videos with torchcodec, which needs FFmpeg's shared libraries
+on the machine. If `lerobot-train` stops with `Could not load libtorchcodec` (seen
+on a Mac without FFmpeg), add `--dataset.video_backend=pyav`.
+
 **3. Evaluate with the Jetson's latency.**
 
 ```bash
@@ -114,8 +130,8 @@ python -m so101_sim eval --policy outputs/train/smolvla_sim/checkpoints/last/pre
 python -m so101_sim eval --policy … --episodes 50 --latency-ms 0,250,500,750,1000,1250
 ```
 
-Records go to the repo's `results/` as `<time>_sim-eval_<name>_<mode>_<latency>ms.json`
-with the success count and Wilson interval, per-episode results, the mean and
+Records go to the repo's `results/` as `<time>_sim-eval_<name>_<mode>_<latency>ms.json`,
+where `<name>` is the training run and checkpoint (`smolvla_sim-last`), with the success count and Wilson interval, per-episode results, the mean and
 p95 observation staleness, the fraction of stalled steps and the git commit.
 Evaluation layouts start at seed 100000, so they never repeat a training layout.
 

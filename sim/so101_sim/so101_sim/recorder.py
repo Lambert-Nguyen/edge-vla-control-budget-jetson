@@ -132,9 +132,26 @@ class Recorder:
         self.frames_in_episode += 1
 
     def save_episode(self) -> int:
+        """Encode and write the episode. Returns the number of episodes saved so far.
+
+        Videos are encoded one camera after the other. LeRobot's default spawns a
+        process pool per episode, which re-imports torch in every worker: about 50%
+        slower for two 640x480 cameras on an M-series Mac, and the pool can die on a
+        cold start. If saving fails anyway, the episode is dropped before the error
+        is raised: LeRobot has already half-consumed its buffer by then, and the
+        next episode would otherwise be appended to the broken one.
+        """
         if self.frames_in_episode == 0:
             return self.num_episodes
-        self.ds.save_episode()
+        try:
+            self.ds.save_episode(**_accepted(self.ds.save_episode, dict(parallel_encoding=False)))
+        except Exception:
+            self.frames_in_episode = 0
+            try:
+                self.ds.clear_episode_buffer()
+            except Exception:
+                pass
+            raise
         self.frames_in_episode = 0
         return self.num_episodes
 

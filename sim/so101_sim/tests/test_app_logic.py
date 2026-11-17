@@ -91,3 +91,29 @@ def test_bad_leader_port_falls_back_to_keyboard(app):
     app.handle({"type": "mode", "mode": "leader", "leader_port": "/dev/does-not-exist"})
     assert app.mode == "keyboard"
     assert any("could not switch to leader" in line for line in app.log_lines)
+
+
+def test_failed_save_drops_the_episode_and_the_next_one_is_clean(app, tmp_path, monkeypatch):
+    app.handle({"type": "record"})
+    run(app, 8)
+    real = app.rec.ds.save_episode
+    calls = {"n": 0}
+
+    def flaky(*a, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            app.rec.ds.writer.episode_buffer.pop("size")    # what LeRobot does before encoding
+            raise RuntimeError("encoder died")
+        return real(*a, **kw)
+
+    monkeypatch.setattr(app.rec.ds, "save_episode", flaky)
+    app.handle({"type": "save"})
+    assert app.saved_episodes == 0 and not app.recording
+    assert any("could not save the episode" in line for line in app.log_lines)
+    app.handle({"type": "record"})
+    run(app, 6)
+    app.handle({"type": "save"})
+    assert app.saved_episodes == 1
+    from lerobot.datasets.lerobot_dataset import LeRobotDataset
+    ds = LeRobotDataset("local/app_test", root=str(tmp_path / "ds"))
+    assert ds.num_episodes == 1 and ds.num_frames == 6

@@ -71,6 +71,24 @@ def default_results_dir() -> Path:
     return Path("sim_results")
 
 
+def policy_label(spec: str) -> str:
+    """Short name for a policy in result file names.
+
+    outputs/train/smolvla_sim/checkpoints/020000/pretrained_model -> smolvla_sim-020000
+    lerobot/smolvla_base (a hub id) -> smolvla_base;  expert -> expert
+    """
+    parts = [x for x in spec.replace("\\", "/").rstrip("/").split("/") if x not in ("", ".")]
+    if not parts:
+        return "policy"
+    if parts[-1] == "pretrained_model":
+        parts = parts[:-1]
+    if len(parts) >= 3 and parts[-2] == "checkpoints":
+        label = f"{parts[-3]}-{parts[-1]}"
+    else:
+        label = parts[-1] if parts else "policy"
+    return "".join(c if c.isalnum() or c in "-_." else "_" for c in label) or "policy"
+
+
 def joint_map(a):
     from .units import JointMap
     return JointMap.load(a.joint_map)
@@ -109,7 +127,7 @@ def cmd_eval(a) -> int:
         latencies = [LatencyModel.constant(float(v)) for v in str(a.latency_ms).split(",")]
     out_dir = Path(a.out_dir)
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    name = "expert" if a.policy == "expert" else Path(a.policy.rstrip("/\\")).parent.name or "policy"
+    name = policy_label(a.policy)
     rows = []
     for lat in latencies:
         out = out_dir / f"{stamp}_sim-eval_{name}_{a.mode}_{lat.mean_ms:.0f}ms.json" if not a.no_save else None
