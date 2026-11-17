@@ -149,3 +149,50 @@ def test_policy_label():
     assert policy_label("outputs\\train\\act\\checkpoints\\last\\pretrained_model\\") == "act-last"
     assert policy_label("lerobot/smolvla_base") == "smolvla_base"
     assert policy_label("expert") == "expert"
+
+
+class FakeFollower:
+    """Stands in for LeRobot's SO101Follower: records what it is sent."""
+
+    def __init__(self, pose):
+        self.pose = {k: float(v) for k, v in zip(FEATURE_NAMES, pose)}
+        self.sent, self.connected, self.fail = [], True, False
+
+    def get_observation(self):
+        return dict(self.pose)
+
+    def send_action(self, action):
+        if self.fail:
+            raise ConnectionError("port vanished")
+        self.sent.append(np.array([action[k] for k in FEATURE_NAMES]))
+        self.pose = dict(action)
+        return action
+
+    def disconnect(self):
+        self.connected = False
+
+
+def test_follower_mirror_catches_up_slowly_then_follows_capped():
+    from so101_sim.follower import FollowerMirror
+    rest = np.array([0.0, -100.0, 95.0, 70.0, 0.0, 2.0])         # folded, as on the bench
+    robot = FakeFollower(rest)
+    m = FollowerMirror("PORT", "id", robot=robot)
+    home = np.array([0.0, -40.0, 20.0, 70.0, 0.0, 20.0])
+    for _ in range(200):
+        m.send(home)
+        if not m.catching_up:
+            break
+    steps = np.abs(np.diff(np.vstack([rest] + robot.sent), axis=0))
+    assert np.allclose(robot.sent[-1], home) and steps.max() <= 1.0 + 1e-9   # 1 deg/step to start
+    n_catch = len(robot.sent)
+    # following: a fast move is capped at 3 deg/step and does not drop back to catch-up
+    for i in range(1, 40):
+        m.send(home + np.array([6.0 * min(i, 5), 0, 0, 0, 0, 0]))
+        assert not m.catching_up
+    steps = np.abs(np.diff(np.vstack(robot.sent[n_catch - 1:]), axis=0))
+    assert steps.max() <= 3.0 + 1e-9 and np.allclose(robot.sent[-1][0], 30.0)
+    # a jump in the simulator (a new scene) goes back to catching up
+    m.send(home)
+    assert m.catching_up and abs(robot.sent[-1][0] - 29.0) < 1e-9
+    m.close()
+    assert not robot.connected

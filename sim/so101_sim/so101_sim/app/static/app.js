@@ -80,6 +80,11 @@ function showSub(mode) {
 $("leader-go").onclick = () =>
   send({ type: "mode", mode: "leader", leader_port: $("leader-port").value.trim(), leader_id: $("leader-id").value.trim() });
 $("expert-go").onclick = () => send({ type: "mode", mode: "expert" });
+const followerHint = $("follower-readout").innerHTML;
+$("follower-go").onclick = () => send({
+  type: "follower", on: !(status && status.follower.connected),
+  port: $("follower-port").value.trim(), id: $("follower-id").value.trim(),
+});
 $("policy-go").onclick = () =>
   send({
     type: "mode", mode: "policy", policy: $("policy-path").value.trim(),
@@ -151,6 +156,8 @@ function render(st) {
     $("randomize").value = st.randomize;
     if (st.leader.port) $("leader-port").value = st.leader.port;
     $("leader-id").value = st.leader.id || "";
+    if (st.follower.port) $("follower-port").value = st.follower.port;
+    $("follower-id").value = st.follower.id || "";
     if (st.policy.spec) $("policy-path").value = st.policy.spec;
     $("policy-latency").value = st.policy.latency_ms;
     $("policy-mode").value = st.policy.mode;
@@ -188,6 +195,18 @@ function render(st) {
     $("kb-readout").textContent =
       `jaws at x ${(x * 100).toFixed(1)} · y ${(y * 100).toFixed(1)} · z ${(z * 100).toFixed(1)} cm, ` +
       `tilt ${st.keyboard.pitch_deg.toFixed(0)}° below horizontal, gripper ${st.keyboard.closed ? "closed" : "open"}`;
+  }
+
+  const f = st.follower;
+  $("follower-go").textContent = f.connected ? "Stop mirroring" : "Connect and mirror";
+  $("follower-port").disabled = $("follower-id").disabled = f.connected;
+  if (!f.connected) {
+    if ($("follower-readout").innerHTML !== followerHint) $("follower-readout").innerHTML = followerHint;
+  } else {
+    $("follower-readout").textContent = st.fast
+      ? "Waiting: the follower does not move while “as fast as possible” is on."
+      : f.catching_up ? `Moving to the simulated arm slowly, ${f.gap.toFixed(0)}° to go.`
+      : `Mirroring the simulated arm${f.gap > 3 ? `, ${f.gap.toFixed(0)}° behind` : ""}.`;
   }
 
   const p = st.policy;

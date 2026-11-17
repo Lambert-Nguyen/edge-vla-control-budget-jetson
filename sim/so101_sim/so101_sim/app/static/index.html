@@ -104,6 +104,18 @@
     </div>
 
     <div class="panel">
+      <h2>Real follower</h2>
+      <p class="hint">Mirror the simulated arm on a real SO-101 follower: whatever drives the
+        simulator drives it too, at most 3° per step.</p>
+      <label>Serial port <input id="follower-port" placeholder="COM4 · /dev/tty.usbmodem… · /dev/ttyACM0"></label>
+      <label>Follower id <input id="follower-id" placeholder="my_follower"></label>
+      <button id="follower-go">Connect and mirror</button>
+      <p class="hint" id="follower-readout">Calibrate it on this computer once first:<br>
+        <code>lerobot-calibrate --robot.type=so101_follower --robot.port=PORT --robot.id=ID</code><br>
+        Clear the space around it. Disconnecting turns its torque off, so it goes limp.</p>
+    </div>
+
+    <div class="panel">
       <h2>Scene</h2>
       <div class="row">
         <button id="btn-new" title="N">New scene <kbd>N</kbd></button>

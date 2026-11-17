@@ -43,6 +43,38 @@ def test_keyboard_moves_the_jaws(app):
     assert moved[0] > 0.02 and moved[2] < -0.02
 
 
+def hold(app, keys, seconds):
+    import time
+    app.handle({"type": "keys", "keys": keys})
+    for _ in range(int(seconds * app.cfg.fps)):
+        app.keys_t = time.monotonic()
+        run(app, 1)
+    app.handle({"type": "keys", "keys": []})
+    run(app, 15)
+
+
+def test_keyboard_moves_where_the_keys_say_at_the_wrist_limit(app):
+    # The jaws cannot point straight down far out or high up: wrist_flex runs out.
+    # The jaws should still go where the keys say, tilting less, and tilting
+    # should not move them.
+    start = app.kb["pos"].copy()
+    hold(app, ["pitch_down"], 1.5)                       # well past what the wrist allows
+    assert np.allclose(app.kb["pos"], start, atol=1e-3)
+    assert np.linalg.norm(app.env.tcp_pos() - start) < 0.01
+    hold(app, ["down"], 0.5)
+    hold(app, ["fwd"], 1.5)                               # far out: the tilt has to give
+    far = app.kb["pos"].copy()
+    assert far[0] - start[0] > 0.12
+    hold(app, ["back"], 1.0)
+    back = app.kb["pos"] - far
+    assert back[0] < -0.10 and abs(back[2]) < 0.005      # back means back, not up
+    assert np.linalg.norm(app.env.tcp_pos() - app.kb["pos"]) < 0.01
+    hold(app, ["pitch_down"], 1.0)                        # asks for more than the wrist has
+    tilt = app.kb["pitch_now"]
+    hold(app, ["pitch_up"], 0.3)                          # answers at once: no wind-up to undo
+    assert app.kb["pitch_now"] < tilt - np.radians(15)
+
+
 def test_sliders_set_joints(app):
     app.handle({"type": "mode", "mode": "sliders"})
     target = [20.0, -30.0, 30.0, 60.0, 10.0, 50.0]
@@ -117,3 +149,30 @@ def test_failed_save_drops_the_episode_and_the_next_one_is_clean(app, tmp_path, 
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
     ds = LeRobotDataset("local/app_test", root=str(tmp_path / "ds"))
     assert ds.num_episodes == 1 and ds.num_frames == 6
+
+
+def test_follower_mirrors_the_simulated_arm(app, monkeypatch):
+    import so101_sim.follower as follower
+    from test_core import FakeFollower
+    robot = FakeFollower(app.env.state())
+    real = follower.FollowerMirror
+    monkeypatch.setattr(follower, "FollowerMirror", lambda port, fid, **kw: real(port, fid, robot=robot, **kw))
+    app.handle({"type": "follower", "on": True})                 # no port yet: refused
+    assert app.follower is None
+    app.handle({"type": "follower", "on": True, "port": "COM9", "id": "f1"})
+    assert app.follower is not None and app.follower_port == "COM9"
+    app.handle({"type": "mode", "mode": "expert"})
+    run(app, 60)
+    assert len(robot.sent) == 60
+    assert np.abs(robot.sent[-1] - app.last_action).max() < 10   # keeping up with the expert
+    app.handle({"type": "fast", "value": True})                  # too fast for a real arm: it waits
+    run(app, 5)
+    assert len(robot.sent) == 60
+    app.handle({"type": "fast", "value": False})
+    robot.fail = True                                             # unplugged: mirror stops, app goes on
+    run(app, 3)
+    assert app.follower is None and not robot.connected and app.step == 68   # the app went on
+    app.handle({"type": "follower", "on": True})
+    robot.fail, robot.connected = False, True
+    app.handle({"type": "follower", "on": False})
+    assert app.follower is None and not robot.connected

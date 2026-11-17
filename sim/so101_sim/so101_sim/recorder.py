@@ -15,6 +15,7 @@ runs without it.
 from __future__ import annotations
 
 import inspect
+import os
 import shutil
 from pathlib import Path
 
@@ -80,6 +81,10 @@ class Recorder:
                  vcodec: str = "libsvtav1"):
         require_lerobot()
         from lerobot.datasets.lerobot_dataset import LeRobotDataset
+        # The AV1 encoder prints its ~20-line configuration for every video it
+        # writes, two per episode, which buries the progress lines. Errors only,
+        # unless the caller set SVT_LOG themselves.
+        os.environ.setdefault("SVT_LOG", "1")
 
         self.cfg, self.task = cfg, task
         self.repo_id = name if "/" in name else f"local/{name}"

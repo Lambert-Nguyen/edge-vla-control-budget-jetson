@@ -64,7 +64,7 @@ the joint readout in LeRobot units.
 
 | Mode | What drives the arm |
 | --- | --- |
-| Keyboard | You steer the jaws: <kbd>W</kbd>/<kbd>S</kbd> forward/back, <kbd>A</kbd>/<kbd>D</kbd> left/right, <kbd>R</kbd>/<kbd>F</kbd> up/down, <kbd>T</kbd>/<kbd>G</kbd> tilt, <kbd>Q</kbd>/<kbd>E</kbd> wrist roll, <kbd>Space</kbd> gripper, hold <kbd>Shift</kbd> for fine moves. Inverse kinematics turns that into joint targets |
+| Keyboard | You steer the jaws: <kbd>W</kbd>/<kbd>S</kbd> forward/back, <kbd>A</kbd>/<kbd>D</kbd> left/right, <kbd>R</kbd>/<kbd>F</kbd> up/down, <kbd>T</kbd>/<kbd>G</kbd> tilt, <kbd>Q</kbd>/<kbd>E</kbd> wrist roll, <kbd>Space</kbd> opens or closes the gripper (the first press opens it fully), hold <kbd>Shift</kbd> for fine moves. Inverse kinematics turns that into joint targets. Far out or high up the wrist cannot point the jaws straight down; they then tilt as far as the joint allows, and the page shows the tilt they have |
 | Sliders | One slider per joint |
 | Leader arm | Your real SO-101 leader on USB, through LeRobot's own driver. Calibrate it on this computer once with `lerobot-calibrate --teleop.type=so101_leader --teleop.port=PORT --teleop.id=ID`. Ports look like `COM3` on Windows and `/dev/tty.usbmodem…` on macOS; `lerobot-find-port` tells you which |
 | Expert | The scripted expert does the task on the current layout |
@@ -78,6 +78,20 @@ recording. Recordings are in simulated time, so a slow computer only makes
 keyboard, expert and policy episodes take longer. With the leader arm it changes
 the data: you move in real time, so below 30 Hz your motion is stored sped up, and
 the log says so.
+
+**Real follower.** The *Real follower* panel connects a real SO-101 follower on
+USB and mirrors the simulated arm on it: whatever drives the simulator (keyboard,
+sliders, the leader arm, the expert or a policy) drives the real arm too. With the
+leader arm as the control mode this is teleop through the simulator. The follower
+first moves to the simulated pose at 1° per step (about 30°/s), and again after a
+new scene; then it follows at most 3° per step, as `MAX_STEP` in the lab script
+(`--follower-max-step` changes it). It waits while *as fast as possible* is on, and
+a serial error stops the mirror without stopping the app. Calibrate the follower
+on this computer once with `lerobot-calibrate --robot.type=so101_follower
+--robot.port=PORT --robot.id=ID`. Stopping the mirror turns its torque off, as
+LeRobot does, so the arm goes limp: support it or bring it to rest first. The real
+arm does not feed back into the simulator, so the cube it would push stays in the
+simulator only. Not yet tried on the real arm.
 
 **Recording** works like `lerobot-record`: *Record episode* starts from a fresh
 layout, <kbd>→</kbd> saves, <kbd>←</kbd> discards, and an episode saves itself at
@@ -212,6 +226,7 @@ so101_sim/
   generate.py     headless expert demo generation
   policy_eval.py  latency model, chunk executor, closed-loop evaluation
   leader.py       real SO-101 leader arm over USB
+  follower.py     mirror the simulated arm on a real SO-101 follower over USB
   app/            local web server and the browser page
   assets/so101/   MuJoCo Menagerie robotstudio_so101 (Apache-2.0) + the task scene
 tests/            pytest; CI runs them on Windows, macOS and Linux

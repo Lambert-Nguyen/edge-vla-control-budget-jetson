@@ -100,7 +100,9 @@ def joint_map(a):
 def cmd_app(a) -> int:
     from .app.server import SimApp, serve
     app = SimApp(sim_config(a), joint_map=joint_map(a), dataset=a.dataset, root=a.root, task=a.task,
-                 seed=a.seed, leader_port=a.leader_port, leader_id=a.leader_id, policy=a.policy,
+                 seed=a.seed, leader_port=a.leader_port, leader_id=a.leader_id,
+                 follower_port=a.follower_port, follower_id=a.follower_id,
+                 follower_max_step=a.follower_max_step, policy=a.policy,
                  latency_ms=a.latency_ms, policy_mode=a.mode, threshold=a.threshold,
                  num_steps=a.num_steps, ui_hz=a.ui_hz, view_size=a.view_size)
     serve(app, host=a.host, port=a.port, open_browser=not a.no_browser)
@@ -224,6 +226,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--task", help="instruction stored with every frame")
     s.add_argument("--leader-port", help="serial port of a real SO-101 leader arm")
     s.add_argument("--leader-id", default="my_leader", help="its LeRobot calibration id")
+    s.add_argument("--follower-port", help="serial port of a real SO-101 follower to mirror the "
+                   "simulated arm (fills in the page; the arm moves only after you connect there)")
+    s.add_argument("--follower-id", default="my_follower", help="its LeRobot calibration id")
+    s.add_argument("--follower-max-step", type=float, default=3.0, metavar="DEG",
+                   help="largest joint move per step sent to the follower (default 3, as MAX_STEP)")
     s.add_argument("--policy", help="start driving with this checkpoint (or 'expert')")
     s.add_argument("--latency-ms", type=float, default=0.0, help="injected chunk latency for --policy")
     s.add_argument("--mode", choices=("async", "sync"), default="async")

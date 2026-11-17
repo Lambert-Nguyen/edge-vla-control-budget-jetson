@@ -11,6 +11,9 @@ Control modes:
   leader    a real SO-101 leader arm on USB drives the simulated follower
   expert    the scripted expert does the task, once or N times while recording
   policy    a LeRobot checkpoint drives the arm, with the Jetson's latency injected
+
+Separately from the mode, a real SO-101 follower on USB can mirror the simulated
+arm (follower.py): whatever drives the simulator then drives the real arm too.
 """
 
 from __future__ import annotations
@@ -50,6 +53,12 @@ KEY_TIMEOUT_S = 0.6           # forget held keys if the browser stops reporting 
 CAM_PREVIEW_HZ = 10.0
 VIEW_HZ_RECORDING = 10.0      # the 3D view's rate while recording, to keep 30 Hz
 WORKSPACE = (np.array([0.02, -0.38, 0.0]), np.array([0.42, 0.38, 0.38]))
+# Keyboard teleop: the jaws' tilt range, how far a tick moves the tilt back toward
+# the one asked for once it is reachable again, and the position error that counts
+# as reached.
+TELEOP_PITCH = (math.radians(-20), math.radians(110))
+TELEOP_PITCH_STEP = math.radians(4)
+TELEOP_TOL = 2e-3
 
 
 def lerobot_available() -> bool:
@@ -99,6 +108,8 @@ class SimApp:
     def __init__(self, cfg: SimConfig, joint_map: JointMap | None = None, dataset: str | None = None,
                  root: str | None = None, task: str | None = None, seed: int = 0,
                  leader_port: str | None = None, leader_id: str = "my_leader",
+                 follower_port: str | None = None, follower_id: str = "my_follower",
+                 follower_max_step: float = 3.0,
                  policy: str | None = None, latency_ms: float = 0.0, policy_mode: str = "async",
                  threshold: float = 0.5, num_steps: int | None = None, ui_hz: float = 30.0,
                  view_size: tuple[int, int] = (960, 720)):
@@ -124,6 +135,9 @@ class SimApp:
         self.slider: np.ndarray | None = None
         self.leader = None
         self.leader_port, self.leader_id = leader_port, leader_id
+        self.follower = None                     # FollowerMirror while mirroring
+        self.follower_port, self.follower_id = follower_port, follower_id
+        self.follower_max_step = follower_max_step
         self.expert: ScriptedExpert | None = None
         self.expert_tail = 0
         self.batch_left = 0
@@ -192,8 +206,12 @@ class SimApp:
         try:
             if mode == "keyboard":
                 p, R = self.ik.fk(q)
-                self.kb = dict(pos=p, pitch=self.ik.pitch_of(R, self.ik._radial(p)), roll=float(q[ROLL]),
-                               grip=float(q[5]), closed=bool(q[5] < 0.0), q=q.copy())
+                pitch = self.ik.pitch_of(R, self.ik._radial(p))
+                self.kb = dict(pos=p, pitch=pitch, pitch_now=pitch, roll=float(q[ROLL]),
+                               grip=float(q[5]), q=q.copy(),
+                               # the home pose (gripper 20) is too narrow for the cube: counting it
+                               # as closed makes the first Space open the jaws fully
+                               closed=bool(q[5] < 0.5 * GRIP_OPEN))
             elif mode == "sliders":
                 self.slider = self.env.state().astype(np.float64)
             elif mode == "leader":
@@ -261,8 +279,9 @@ class SimApp:
         axis = lambda a, b: float((a in k) - (b in k))   # noqa: E731
         kb["pos"] = np.clip(kb["pos"] + v * dt * np.array([axis("fwd", "back"), axis("left", "right"),
                                                            axis("up", "down")]), *WORKSPACE)
-        kb["pitch"] = float(np.clip(kb["pitch"] + w * dt * axis("pitch_down", "pitch_up"),
-                                    math.radians(-20), math.radians(110)))
+        tilt = axis("pitch_down", "pitch_up")
+        if tilt:   # from the tilt the jaws have, so holding a key at a joint limit does not wind up
+            kb["pitch"] = float(np.clip(kb["pitch_now"] + w * dt * tilt, *TELEOP_PITCH))
         kb["roll"] = float(np.clip(kb["roll"] + w * dt * axis("roll_left", "roll_right"),
                                    self.ik.lo[ROLL], self.ik.hi[ROLL]))
         if kb.get("toggled"):                            # hold the current opening until Space
@@ -270,12 +289,79 @@ class SimApp:
             kb["grip"] += float(np.clip(target - kb["grip"], -3.0 * dt, 3.0 * dt))
         q = kb["q"].copy()
         q[ROLL] = kb["roll"]
-        q, err = self.ik.solve(q, kb["pos"], kb["pitch"], iters=25)
+        q, kb["pitch_now"], err = self._teleop_ik(q, kb["pos"], kb["pitch"], kb["pitch_now"])
         if err > 0.01:                                   # out of reach: stop where the arm got to
             kb["pos"], _ = self.ik.fk(q)
         q[5] = kb["grip"]
         kb["q"] = q
         return self.env.jmap.to_lerobot(q)
+
+    def _teleop_ik(self, q: np.ndarray, pos: np.ndarray, want: float, now: float):
+        """Put the jaws at pos, tilted as close to `want` as the joints allow.
+
+        Position comes first. Pointing the jaws straight down far out, or high up,
+        needs more wrist_flex than the joint has; solving for both then misses the
+        position by centimetres, and the keys appeared to move the jaws the wrong way.
+        This tries the wanted tilt, a step from the current tilt toward it, the
+        current tilt, then tilts a little further from it either way. Most ticks the
+        first solve converges and returns at once. Returns (q, tilt, position error).
+        """
+        lo, hi = TELEOP_PITCH
+        cands = [want]
+        if abs(want - now) > 1e-6:
+            cands += [now + float(np.clip(want - now, -TELEOP_PITCH_STEP, TELEOP_PITCH_STEP)), now]
+            sides = (1.0 if now >= want else -1.0,)      # further from `want` than `now` is
+        else:
+            sides = (-1.0, 1.0)
+        cands += [now + s * math.radians(d) for d in (3, 8, 15) for s in sides]
+        best, tried = None, set()
+        for p in cands:
+            p = float(np.clip(p, lo, hi))
+            if round(p, 4) in tried:
+                continue
+            tried.add(round(p, 4))
+            qp, err = self.ik.solve(q, pos, p, iters=25)
+            if err < TELEOP_TOL:
+                return qp, p, err
+            if best is None or err < best[2]:
+                best = (qp, p, err)
+        return best
+
+    # ------------------------------------------------------------------ real follower
+
+    def start_mirror(self) -> None:
+        if self.follower is not None:
+            return
+        if not self.follower_port:
+            self.log("enter the follower's serial port first (lerobot-find-port shows it)")
+            return
+        try:
+            from ..follower import FollowerMirror
+            self.log(f"connecting to the follower on {self.follower_port} ...")
+            self.follower = FollowerMirror(self.follower_port, self.follower_id,
+                                           max_step_deg=self.follower_max_step)
+            self.log(f"follower connected: it moves to the simulated arm slowly, then mirrors it"
+                     f" (at most {self.follower_max_step:g} deg per step)")
+            if self.fast:
+                self.log("the follower waits while 'as fast as possible' is on")
+        except Exception as e:
+            self.follower = None
+            self.log(f"cannot connect to the follower: {e}")
+
+    def stop_mirror(self, quiet: bool = False) -> None:
+        if self.follower is None:
+            return
+        self.follower.close()
+        self.follower = None
+        if not quiet:
+            self.log("follower disconnected; its torque is off")
+
+    def mirror(self, action: np.ndarray) -> None:
+        try:
+            self.follower.send(action)
+        except Exception as e:                   # a serial error stops the mirror, not the app
+            self.log(f"follower error, mirroring stopped: {e}")
+            self.stop_mirror(quiet=True)
 
     # ------------------------------------------------------------------ recording
 
@@ -416,6 +502,15 @@ class SimApp:
             self.new_scene()
         elif t == "pause":
             self.paused = bool(c.get("value", not self.paused))
+        elif t == "follower":
+            if c.get("port"):
+                self.follower_port = c["port"]
+            if c.get("id"):
+                self.follower_id = c["id"]
+            if c.get("on"):
+                self.start_mirror()
+            else:
+                self.stop_mirror()
         elif t == "fast":
             self.fast = bool(c.get("value"))
         elif t == "orbit":
@@ -496,12 +591,16 @@ class SimApp:
             "batch_left": self.batch_left, "batch_stats": self.batch_stats,
             "lerobot": self.has_lerobot,
             "leader": {"port": self.leader_port, "id": self.leader_id, "connected": self.leader is not None},
+            "follower": {"port": self.follower_port, "id": self.follower_id,
+                         "connected": self.follower is not None,
+                         "catching_up": bool(self.follower and self.follower.catching_up),
+                         "gap": round(self.follower.gap, 1) if self.follower else 0.0},
             "policy": {"spec": self.policy_spec, **self.policy_cfg,
                        "inferences": ex.inferences if ex else 0, "stalls": ex.stalls if ex else 0,
                        "waiting": bool(ex.waiting) if ex else False},
             "keyboard": None if self.kb is None else {
                 "pos": [round(float(x), 3) for x in self.kb["pos"]],
-                "pitch_deg": round(math.degrees(self.kb["pitch"]), 1), "closed": self.kb["closed"]},
+                "pitch_deg": round(math.degrees(self.kb["pitch_now"]), 1), "closed": self.kb["closed"]},
             "log": list(self.log_lines),
             "time": now,
         }
@@ -523,6 +622,8 @@ class SimApp:
             self.rec.add(obs, action)
         self.env.apply_action(action)
         self.last_action = action
+        if self.follower is not None and not self.fast:
+            self.mirror(action)
         self.step += 1
         self.after_step()
         self._tick_times.append(time.perf_counter())
@@ -573,6 +674,7 @@ class SimApp:
             self.rec = None
         if self.leader is not None:
             self.leader.close()
+        self.stop_mirror(quiet=True)
         self.hub.close()
         if self._view_renderer is not None:
             self._view_renderer.close()
