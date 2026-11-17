@@ -25,14 +25,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Software OpenGL for rendering
+        # Before the tests: tests/conftest.py picks EGL on headless Linux when libEGL is there.
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libegl-mesa0 libgl1-mesa-dri
       - run: python -m pip install -e ".[dev]"
       - name: Unit tests (physics, units, expert, latency model)
         run: python -m pytest -q tests/test_core.py
       - name: Expert check without rendering
         run: python -m so101_sim check --no-render --episodes 3
-      - name: Software OpenGL for rendering
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libegl1 libegl-mesa0 libgl1-mesa-dri
       - name: Rendering check (Linux, EGL)
         if: runner.os == 'Linux'
         env:
