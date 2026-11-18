@@ -48,6 +48,31 @@ def test_cube_and_box_never_overlap(env):
         assert rel.max() > env.box_outer_half + env.cube_half
 
 
+def test_start_pose_varies_but_stays_safe_and_keeps_the_layout():
+    from so101_sim.config import HOME_POSE, START_MIN_HEIGHT, START_SPREAD
+    e = SO101Env(SimConfig(randomize="light"), render=False)
+    fixed = SO101Env(SimConfig(randomize="light", start_spread=0.0), render=False)
+    starts = []
+    for s in range(30):
+        e.reset(seed=s, render=False)
+        fixed.reset(seed=s, render=False)
+        start = e.jmap.to_lerobot(e.start)
+        assert np.all(np.abs(start - HOME_POSE) <= np.array(START_SPREAD) + 1e-3)
+        assert e.tcp_pos()[2] >= START_MIN_HEIGHT - 0.005       # after settling
+        assert np.allclose(e.cube_pose()[0], fixed.cube_pose()[0], atol=1e-3)   # same layout
+        assert np.allclose(e.box_pos(), fixed.box_pos())
+        assert np.allclose(fixed.start, fixed.home)
+        starts.append(start)
+    assert np.all(np.std(starts, axis=0) > 4)                   # every joint varies
+    e.reset(seed=3, render=False)
+    again = e.start.copy()
+    e.reset(seed=3, render=False)
+    assert np.allclose(e.start, again)                          # and a seed repeats it
+    none = SO101Env(SimConfig(randomize="none"), render=False)
+    none.reset(seed=5, render=False)
+    assert np.allclose(none.start, none.home)
+
+
 @pytest.mark.parametrize("level", ["none", "light", "full"])
 def test_expert_solves_the_task(level):
     e = SO101Env(SimConfig(randomize=level), render=False)

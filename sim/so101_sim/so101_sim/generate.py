@@ -49,7 +49,9 @@ def generate(name: str, episodes: int, cfg: SimConfig, seed: int = 0, root: str 
                 log_path.parent.mkdir(parents=True, exist_ok=True)
                 with log_path.open("a") as f:
                     f.write(json.dumps({"episode_index": idx, "seed": s, "success": bool(ok), "frames": n,
-                                        "randomize": cfg.randomize, "expert_speed": expert.speed}) + "\n")
+                                        "randomize": cfg.randomize, "expert_speed": expert.speed,
+                                        "start": [round(float(v), 2) for v in env.jmap.to_lerobot(env.start)]})
+                            + "\n")
                 log(f"episode {idx:4d}  seed {s:6d}  {'success' if ok else 'FAILED '}  {n} frames  "
                     f"[{saved}/{episodes}, {time.perf_counter() - t0:.0f}s]")
             else:

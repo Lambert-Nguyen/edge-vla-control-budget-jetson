@@ -31,6 +31,13 @@ RANDOMIZE_LEVELS = ("none", "light", "full")
 # (0, -100, 95, 70, 0, 0), puts the jaws inside the cube spawn area.
 HOME_POSE = (0.0, -40.0, 20.0, 70.0, 0.0, 20.0)
 
+# How far each episode's start pose may stray from the home pose, LeRobot units,
+# at start_spread = 1. On the real arm an episode starts wherever the arm is, so a
+# policy should not learn one start pose. Draws that bring the jaws within
+# START_MIN_HEIGHT of the table, or the arm into the cube or box, are redrawn.
+START_SPREAD = (30.0, 15.0, 20.0, 20.0, 30.0, 20.0)
+START_MIN_HEIGHT = 0.10      # m, jaws over the table
+
 
 @dataclass(frozen=True)
 class TaskConfig:
@@ -64,6 +71,9 @@ class SimConfig:
     camera1_target: tuple[float, float, float] = (0.20, 0.0, 0.0)
     camera1_fovy: float = 52.0      # a Brio at 78 degrees diagonal, cropped to 4:3
     home_pose: tuple[float, ...] = HOME_POSE   # start pose, LeRobot units
+    # Scale on START_SPREAD for the random start pose: 0 starts every episode at
+    # home_pose. Randomize level "none" always starts at home_pose.
+    start_spread: float = 1.0
     task: TaskConfig = field(default_factory=TaskConfig)
 
     def with_(self, **kw) -> "SimConfig":

@@ -349,7 +349,7 @@ def evaluate(policy_spec: str, cfg: SimConfig, episodes: int, latency: LatencyMo
         "kind": "so101_sim_eval",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "config": {"policy": policy_spec, "mode": mode, "threshold": threshold, "episodes": episodes,
-                   "first_seed": seed, "randomize": cfg.randomize, "fps": cfg.fps,
+                   "first_seed": seed, "randomize": cfg.randomize, "start_spread": cfg.start_spread, "fps": cfg.fps,
                    "episode_s": cfg.episode_s, "cameras": list(cfg.cameras),
                    "n_action_steps": policy.n_action_steps, "num_steps": num_steps,
                    "latency": asdict(latency)},

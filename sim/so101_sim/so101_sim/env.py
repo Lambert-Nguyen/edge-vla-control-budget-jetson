@@ -21,7 +21,7 @@ from dataclasses import dataclass
 import mujoco
 import numpy as np
 
-from .config import JOINT_NAMES, SCENE_XML, SimConfig
+from .config import JOINT_NAMES, SCENE_XML, START_MIN_HEIGHT, START_SPREAD, SimConfig
 from .units import JointMap
 
 # Dataset camera key -> camera name in the MJCF.
@@ -131,6 +131,8 @@ class SO101Env:
         self._table_mat = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_MATERIAL, "table")
 
         self.home = self.jmap.to_sim(np.array(self.cfg.home_pose, dtype=float))
+        self.start = self.home.copy()       # this episode's start pose, sim radians
+        self._fixed_bodies = {0, self.box_body, self.cube_body}
         self.step_count = 0
         self.task = self.cfg.task.instruction
         self._aim_camera1(self.cfg.camera1_pos, self.cfg.camera1_target, self.cfg.camera1_fovy)
@@ -239,11 +241,13 @@ class SO101Env:
         cube_xy, cube_yaw, box_xy = self._sample_layout(level)
         m.body_pos[self.box_body][:2] = box_xy
 
-        d.qpos[self.qadr] = self.home
-        d.ctrl[self.act] = self.home
         c = self.cube_qadr
         d.qpos[c:c + 3] = [cube_xy[0], cube_xy[1], self.cube_half + 0.0005]
         d.qpos[c + 3:c + 7] = yaw_quat(cube_yaw)
+        # Drawn after the layout, so a seed gives the same layout at any spread.
+        self.start = self._sample_start(level)
+        d.qpos[self.qadr] = self.start
+        d.ctrl[self.act] = self.start
         mujoco.mj_forward(m, d)
         self.hold(0.3)                       # let the cube and the arm settle
         d.time = 0.0
@@ -266,6 +270,33 @@ class SO101Env:
             cube_xy = np.array([np.mean(t.cube_x), -side * max(abs(v) for v in t.cube_y)])
         yaw = math.radians(rng.uniform(*t.cube_yaw_deg))
         return cube_xy, yaw, box_xy
+
+    def _sample_start(self, level: str) -> np.ndarray:
+        """Start pose near home: jaws well over the table, arm clear of cube and box."""
+        spread = 0.0 if level == "none" else self.cfg.start_spread
+        if spread <= 0:
+            return self.home.copy()
+        m, d = self.model, self.data
+        home = self.jmap.to_lerobot(self.home).astype(np.float64)
+        lo, hi = self.jmap.to_lerobot(self.ctrl_lo), self.jmap.to_lerobot(self.ctrl_hi)
+        lo, hi = np.minimum(lo, hi), np.maximum(lo, hi)     # a mirrored joint map swaps them
+        width = spread * np.asarray(START_SPREAD)
+        for _ in range(100):
+            q = self.jmap.to_sim(np.clip(home + self.rng.uniform(-width, width), lo, hi))
+            d.qpos[self.qadr] = q
+            mujoco.mj_forward(m, d)
+            if self.tcp_pos()[2] >= START_MIN_HEIGHT and not self._arm_touches_something():
+                return q
+        return self.home.copy()
+
+    def _arm_touches_something(self) -> bool:
+        fixed = self._fixed_bodies
+        body = self.model.geom_bodyid
+        for i in range(self.data.ncon):
+            c = self.data.contact[i]
+            if body[c.geom1] not in fixed or body[c.geom2] not in fixed:
+                return True
+        return False
 
     def _randomize_appearance(self, level: str) -> None:
         m, rng = self.model, self.rng

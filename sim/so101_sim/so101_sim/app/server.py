@@ -209,8 +209,8 @@ class SimApp:
                 pitch = self.ik.pitch_of(R, self.ik._radial(p))
                 self.kb = dict(pos=p, pitch=pitch, pitch_now=pitch, roll=float(q[ROLL]),
                                grip=float(q[5]), q=q.copy(),
-                               # the home pose (gripper 20) is too narrow for the cube: counting it
-                               # as closed makes the first Space open the jaws fully
+                               # start poses (gripper 0-40) are too narrow for the cube: counting
+                               # those as closed makes the first Space open the jaws fully
                                closed=bool(q[5] < 0.5 * GRIP_OPEN))
             elif mode == "sliders":
                 self.slider = self.env.state().astype(np.float64)

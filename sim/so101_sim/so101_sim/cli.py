@@ -47,12 +47,15 @@ def add_sim_args(p: argparse.ArgumentParser) -> None:
     g.add_argument("--joint-map", help="JSON with per-joint sign/offset if your real arm disagrees with the sim")
     g.add_argument("--home", type=lambda s: _floats(s, 6), metavar="6 VALUES",
                    help=f"start pose in LeRobot units (default {','.join(f'{v:g}' for v in HOME_POSE)})")
+    g.add_argument("--start-spread", type=float, default=1.0, metavar="X",
+                   help="scale on how far each episode's start pose strays from --home: 1 is up to "
+                        "30 degrees per joint (default), 0 starts every episode at --home")
 
 
 def sim_config(a: argparse.Namespace) -> SimConfig:
     kw = dict(fps=a.fps, episode_s=a.episode_s, width=a.width, height=a.height, randomize=a.randomize,
               cameras=tuple(c.strip() for c in a.cameras.split(",") if c.strip()),
-              max_step_deg=a.max_step_deg)
+              max_step_deg=a.max_step_deg, start_spread=a.start_spread)
     if a.camera1_pos:
         kw["camera1_pos"] = a.camera1_pos
     if a.camera1_target:

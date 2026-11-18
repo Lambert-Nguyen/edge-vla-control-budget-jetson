@@ -108,12 +108,13 @@ a row; tick *as fast as possible* to skip real-time pacing. Datasets go to
 python -m so101_sim generate --name sim_cube_box --episodes 200 --randomize full
 ```
 
-Layout seeds start at 0 and each episode's seed is logged in
+Layout seeds start at 0 and each episode's seed and start pose are logged in
 `meta/so101_sim_episodes.jsonl`. Only successful episodes are kept. The expert
-succeeded on all 3,100 layouts checked (seeds 0–1399 at `light`, 0–1399 and
-100000–100299 at `full`). Over a far box, or above a far cube, it tilts the jaws a
-little off vertical, because pointing them straight down there needs more
-`wrist_flex` than the joint has.
+succeeded on all 3,100 layouts checked from the home pose (seeds 0–1399 at
+`light`, 0–1399 and 100000–100299 at `full`), and on all 800 checked from random
+start poses (seeds 0–299 at `light`, 0–299 and 100000–100199 at `full`). Over a
+far box, or above a far cube, it tilts the jaws a little off vertical, because
+pointing them straight down there needs more `wrist_flex` than the joint has.
 
 **2. Train on the workstation.** Copy the dataset folder to the RTX 4090 machine,
 then fine-tune as with real data, for example SmolVLA:
@@ -193,9 +194,15 @@ table 20 cm in front of the base, with a 52° vertical field of view (a Brio at
 base, y to its left, z up). `camera2` is the wrist camera on Menagerie's camera
 mount.
 
-**Episodes** start from a raised pose with the jaws about 16 cm over the table
-(`--home` changes it). The real arm's folded rest pose puts the jaws inside the
-area where cubes spawn.
+**Episodes** start near a raised home pose with the jaws about 16 cm over the
+table (`--home` changes it). The real arm's folded rest pose puts the jaws inside
+the area where cubes spawn. On the real arm an episode starts wherever the arm
+is, so at `light` and `full` each episode's start pose strays from home by up to
+30° on `shoulder_pan` and `wrist_roll`, 15–20° on the other joints and 20 on the
+gripper, redrawn if the jaws come within 10 cm of the table or the arm touches
+the cube or box. `--start-spread 2` doubles that (the expert still succeeded on
+150 of 150 layouts), and `--start-spread 0` or `--randomize none` starts every
+episode at home. A seed gives the same layout at any spread.
 
 **Servo limits.** The gripper gets half the arm servos' torque, because
 LeRobot's follower writes `Max_Torque_Limit = 500` (50%) to the gripper.
