@@ -69,28 +69,56 @@ def _static_mask_apply(hidden_states, mask, text_funcs, vision_funcs, out_dims=N
     return outs
 
 
+def _wrap(angle):
+    """The same angle, reduced to [0, 2 pi).
+
+    TensorRT's Sin and Cos lose accuracy for large angles (the rotary angles go up
+    to about 280 rad, the time embedding to about 1570 rad). With the angle in one
+    turn first, the engine matched ONNX Runtime again. The math is unchanged.
+    """
+    import math
+
+    two_pi = 2 * math.pi
+    return angle - two_pi * torch.floor(angle / two_pi)
+
+
 def _plain_rope_forward(self, x, position_ids):
     """HunYuanVLMoTRotaryEmbedding.forward without @dynamic_rope_update."""
     inv = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1).to(x.device)
-    freqs = (inv @ position_ids[:, None, :].float()).transpose(1, 2)
+    freqs = _wrap((inv @ position_ids[:, None, :].float()).transpose(1, 2))
     emb = torch.cat((freqs, freqs), dim=-1)
     return (emb.cos() * self.attention_scaling).to(x.dtype), (emb.sin() * self.attention_scaling).to(x.dtype)
+
+
+def _sinusoidal_fp32(time, dimension: int, min_period: float, max_period: float, device):
+    """create_sinusoidal_pos_embedding in float32.
+
+    The original works in float64, and TensorRT has no float64 (the engine gave
+    wrong velocities). Here t is in [0, 1] and the largest frequency is about
+    1570 rad, so float32 is accurate enough.
+    """
+    import math
+
+    fraction = torch.linspace(0.0, 1.0, dimension // 2, dtype=torch.float32, device=device)
+    period = min_period * (max_period / min_period) ** fraction
+    sin_input = _wrap((2 * math.pi / period)[None, :] * time.float()[:, None])
+    return torch.cat([torch.sin(sin_input), torch.cos(sin_input)], dim=1)
 
 
 def _embed_suffix_any_dtype(self, state, noisy_actions, timestep):
     """HyVLAFlowMatching.embed_suffix with the model's dtype in place of bfloat16.
 
     The original casts the state, the time embedding and the noisy actions to
-    bfloat16, so an FP32 model fails. Same math otherwise.
+    bfloat16, so an FP32 model fails. The time embedding is float32 instead of
+    float64 (see _sinusoidal_fp32). Same math otherwise.
     """
     import torch.nn.functional as F
-    from hy_vla.modeling_hy_vla import create_sinusoidal_pos_embedding
 
     dt = self.action_in_proj.weight.dtype
     state_block = self.state_proj(state).to(dt)[:, None, :]
     bsize, device = state_block.shape[0], state_block.device
-    time_emb = create_sinusoidal_pos_embedding(timestep, self.config.proj_width, min_period=4e-3,
-                                               max_period=4.0, device=device).type(dt)
+    time_emb = _sinusoidal_fp32(timestep, self.config.proj_width, min_period=4e-3,
+                                max_period=4.0, device=device).type(dt)
     action_emb = self.action_in_proj(noisy_actions.to(dt))
     time_emb = time_emb[:, None, :].expand_as(action_emb)
     action_time_emb = self.action_time_mlp_out(F.silu(self.action_time_mlp_in(torch.cat([action_emb, time_emb], dim=2))))
@@ -103,6 +131,74 @@ def _embed_suffix_any_dtype(self, state, noisy_actions, timestep):
     return embs, pad_masks, att, modality
 
 
+def _rmsnorm_fp16_safe(self, hidden_states):
+    """HunYuanVLMoTRMSNorm.forward that does not overflow in FP16.
+
+    The original squares x in float32, but TensorRT's --fp16 flag runs it in
+    FP16: hidden values reach about 280, 280^2 is over the FP16 maximum (65504),
+    and the engine output collapsed to near zero. Dividing each row by its own
+    largest |x| first keeps every square at most 1. The same math:
+    x * rsqrt(mean(x^2) + eps) = y * rsqrt(mean(y^2) + eps / s^2), with y = x / s.
+    """
+    input_dtype = hidden_states.dtype
+    x = hidden_states.to(torch.float32)
+    s = x.abs().amax(-1, keepdim=True).clamp_min(1e-6)
+    y = x / s
+    var = y.pow(2).mean(-1, keepdim=True)
+    y = y * torch.rsqrt(var + self.variance_epsilon / s / s)
+    return self.weight * y.to(input_dtype)
+
+
+def _rotate_half_matrix(dim: int, dtype, device):
+    """R with x @ R == rotate_half(x) == cat(-x[..., d/2:], x[..., :d/2])."""
+    h = dim // 2
+    r = torch.zeros(dim, dim, dtype=dtype, device=device)
+    idx = torch.arange(h, device=device)
+    r[idx + h, idx] = -1.0   # first half of the output is -x2
+    r[idx, idx + h] = 1.0    # second half of the output is x1
+    return r
+
+
+def _apply_rotary_matmul(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
+    """apply_rotary_pos_emb with rotate_half as a matrix multiply.
+
+    TensorRT (10.3 to 11.5) fused the slice, neg and concat of rotate_half wrongly
+    on this graph: the rotated q and k were wrong in the engine but right when
+    their nodes were marked as outputs. x @ R is the same math as one MatMul.
+    """
+    cos = cos.unsqueeze(unsqueeze_dim)
+    sin = sin.unsqueeze(unsqueeze_dim)
+    r = _rotate_half_matrix(q.shape[-1], q.dtype, q.device)
+    return q * cos + (q @ r) * sin, k * cos + (k @ r) * sin
+
+
+def _dual_tower_forward_no_bf16(dt):
+    """HyDualTower.forward from the Hy-VLA source, with two changes for TensorRT.
+
+    1. In every layer the original casts the attention output to bfloat16 and
+       back. Here it keeps the dtype of the query, so the FP32 graph is all FP32.
+    2. No q/k Split when there is only one part (see below).
+    """
+    import inspect
+    import textwrap
+
+    src = textwrap.dedent(inspect.getsource(dt.HyDualTower.forward))
+    old = "att_output = att_output.to(dtype=torch.bfloat16)"
+    assert src.count(old) == 1, "the Hy-VLA code changed: look at the bfloat16 cast in HyDualTower.forward"
+    src = src.replace(old, "att_output = att_output.to(dtype=query_states.dtype)")
+    # With one tower (the expert step) the q/k split has one part. A Split with
+    # one output gave wrong values in TensorRT 10.3 once it was fused with the
+    # next Pow of the q/k norm. For one part, the tensor itself is the same.
+    for name in ("query_states", "key_states"):
+        part = "q_parts" if name == "query_states" else "k_parts"
+        old_split = f"{part} = {name}.split(seq_len_list, dim=2)"
+        assert src.count(old_split) == 1, f"the Hy-VLA code changed: look at {old_split}"
+        src = src.replace(old_split, f"{part} = {name}.split(seq_len_list, dim=2) if len(seq_len_list) > 1 else [{name}]")
+    ns: dict = {}
+    exec(compile(src, dt.__file__, "exec"), dt.__dict__, ns)
+    return ns["forward"]
+
+
 @contextlib.contextmanager
 def export_patches():
     import hy_vla.hunyuan_vl_mot.modeling_hunyuan_vl_mot as mot
@@ -110,14 +206,19 @@ def export_patches():
 
     import hy_vla.modeling_hy_vla as hv
 
-    saved = (dt.mask_apply, mot.HunYuanVLMoTRotaryEmbedding.forward, hv.HyVLAFlowMatching.embed_suffix)
+    saved = (dt.mask_apply, mot.HunYuanVLMoTRotaryEmbedding.forward, hv.HyVLAFlowMatching.embed_suffix,
+             dt.HyDualTower.forward, dt.apply_rotary_pos_emb, mot.HunYuanVLMoTRMSNorm.forward)
     dt.mask_apply = _static_mask_apply
     mot.HunYuanVLMoTRotaryEmbedding.forward = _plain_rope_forward
     hv.HyVLAFlowMatching.embed_suffix = _embed_suffix_any_dtype
+    dt.HyDualTower.forward = _dual_tower_forward_no_bf16(dt)
+    dt.apply_rotary_pos_emb = _apply_rotary_matmul
+    mot.HunYuanVLMoTRMSNorm.forward = _rmsnorm_fp16_safe
     try:
         yield
     finally:
-        dt.mask_apply, mot.HunYuanVLMoTRotaryEmbedding.forward, hv.HyVLAFlowMatching.embed_suffix = saved
+        (dt.mask_apply, mot.HunYuanVLMoTRotaryEmbedding.forward, hv.HyVLAFlowMatching.embed_suffix,
+         dt.HyDualTower.forward, dt.apply_rotary_pos_emb, mot.HunYuanVLMoTRMSNorm.forward) = saved
 
 
 class ExpertStepExport(nn.Module):
