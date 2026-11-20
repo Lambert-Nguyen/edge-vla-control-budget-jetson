@@ -44,6 +44,10 @@ class SafetyConfig:
     bus_fail_steps_to_stop: int = 3
     park_step_deg: float = 2.0
     rest_pose_deg: dict[str, float] | None = None
+    # Tighter limits for some joints, e.g. {shoulder_lift: [-75, null]} when the
+    # table is above the calibrated end. null keeps the computed limit. A value
+    # can only make a limit tighter, never wider.
+    limit_overrides: dict[str, list] | None = None
 
     @classmethod
     def from_dict(cls, d: dict) -> "SafetyConfig":
@@ -85,6 +89,14 @@ def soft_limits(calibration: dict, cfg: SafetyConfig) -> dict[str, tuple[float, 
         if edge <= 0:
             raise ValueError(f"{j}: calibrated range {lo_t}-{hi_t} is smaller than the margin")
         limits[j] = (-edge, edge)
+    for j, (lo, hi) in (cfg.limit_overrides or {}).items():
+        if j not in limits:
+            raise ValueError(f"limit_overrides: unknown joint {j}")
+        cur_lo, cur_hi = limits[j]
+        new = (cur_lo if lo is None else max(cur_lo, float(lo)), cur_hi if hi is None else min(cur_hi, float(hi)))
+        if new[0] >= new[1]:
+            raise ValueError(f"limit_overrides: {j} lower limit {new[0]} is not below upper limit {new[1]}")
+        limits[j] = new
     return limits
 
 

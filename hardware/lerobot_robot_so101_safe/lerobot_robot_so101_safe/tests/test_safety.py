@@ -70,6 +70,15 @@ def test_soft_limits_match_spec_table():
     assert lim["gripper"] == (2.0, 98.0)
 
 
+def test_limit_overrides_only_tighten():
+    lim = soft_limits(CAL, cfg(limit_overrides={"shoulder_lift": [-75, None], "elbow_flex": [-200, 200]}))
+    assert lim["shoulder_lift"][0] == -75.0
+    assert lim["shoulder_lift"][1] == pytest.approx(97.9, abs=0.1)  # null keeps it
+    assert lim["elbow_flex"] == pytest.approx((-91.4, 91.4), abs=0.1)  # cannot widen
+    with pytest.raises(ValueError):
+        soft_limits(CAL, cfg(limit_overrides={"shoulder_lift": [99, None]}))
+
+
 def test_limit_clamp():  # 3
     lim = soft_limits(CAL, cfg())
     present = zeros() | {"shoulder_pan": 84.0, "gripper": 50.0}
