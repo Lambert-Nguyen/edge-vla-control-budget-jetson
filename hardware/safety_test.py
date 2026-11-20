@@ -94,13 +94,16 @@ def main() -> int:
     if args.wrong_config and ask("B-7: start with the other arm's config. The arm must not move."):
         bad = SafeFollower(SafeFollowerConfig(port=args.port, id=args.id, safety_config=args.wrong_config,
                                               run_name=name + "-b7"))
-        bad.safety.arm = args.id  # test the voltage profile, not the name check
+        # Test the voltage profile only: take the name and rest pose of this arm.
+        bad.safety.arm = args.id
+        bad.safety.rest_pose_deg = SafeFollower(SafeFollowerConfig(
+            port=args.port, id=args.id, safety_config=args.config)).safety.rest_pose_deg
         try:
             bad.connect()
             record("B-7", False, reason="connect did not refuse")
             bad.disconnect()
         except SafetyCheckError as e:
-            record("B-7", True, refused=str(e))
+            record("B-7", "voltage" in str(e), refused=str(e))
 
     robot = SafeFollower(SafeFollowerConfig(port=args.port, id=args.id, safety_config=args.config,
                                             run_name=name))
