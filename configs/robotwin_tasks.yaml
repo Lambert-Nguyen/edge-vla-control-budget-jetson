@@ -1,0 +1,28 @@
+# RoboTwin 2.0 task subset and seeds for the Hy-VLA evaluation (E-4, Q-1).
+# Every setup (FP16 on the workstation, quantized setups, engines on the Jetson)
+# runs these tasks with these settings, so the results compare episode by episode.
+
+robotwin_commit: 13c3c47        # 2026-07-26, the layout that Hy-VLA's robotwin_eval expects
+embodiment: aloha-agilex        # RoboTwin default, the robot of the Hy-VLA RoboTwin checkpoint
+task_config: demo_clean
+instruction_type: unseen
+eval_seed: 10000                # --seed of script/eval_policy.py. RoboTwin starts at 100000 * (1 + seed)
+episodes_per_task: 100          # fixed in script/eval_policy.py at 13c3c47. --test_num has no effect
+
+# Single-arm tasks, the closest to what our SO-101 can do. The first three are also
+# in the Hy-VLA regression set (scripts/eval_robotwin_test.sh), so we can compare
+# with their numbers. The RoboTwin expert solved all of them on Nov 19.
+tasks:
+  - adjust_bottle
+  - beat_block_hammer
+  - click_bell
+  - place_a2b_left
+  - stack_blocks_two
+reserve: move_can_pot           # use it if one task does not work with our setup
+
+# Calibration and fine-tuning use demos only. RoboTwin collects demos from seed 0 up,
+# far below the evaluation seeds, so calibration never sees an evaluation episode (Q-5).
+calibration:
+  task_config: demo_clean
+  demos_per_task: 50
+  first_seed: 0
