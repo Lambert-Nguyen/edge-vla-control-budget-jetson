@@ -1,0 +1,205 @@
+{
+  "kind": "e8_bench_test",
+  "arm": "team_follower (SO-ARM101 Pro, 12 V)",
+  "timestamp": "2026-11-20T09:22:48.713070+00:00",
+  "config": {
+    "file": "configs/safety/team_follower.yaml",
+    "sha256": "34f9315b2adcc46b16a69abe8d4bfe724c3f2a8b7705e1544f0560612e1167b9"
+  },
+  "result": "PASS",
+  "cases": {
+    "B-1": {
+      "pass": true,
+      "past_limit_deg": {
+        "shoulder_pan.lo": -0.45,
+        "shoulder_pan.hi": -0.45,
+        "shoulder_lift.lo": -0.47,
+        "shoulder_lift.hi": -0.24,
+        "elbow_flex.lo": -0.45,
+        "elbow_flex.hi": -0.4,
+        "wrist_flex.lo": -0.36,
+        "wrist_flex.hi": -0.36,
+        "gripper.lo": -0.45,
+        "gripper.hi": -0.52
+      },
+      "short_deg": {},
+      "run": "bench-20261120-011944",
+      "commit": "c6aad51"
+    },
+    "B-2": {
+      "pass": true,
+      "max_step_deg": 2.99,
+      "moving_steps": 19,
+      "run": "bench-20261120-012147",
+      "commit": "c6aad51"
+    },
+    "B-3": {
+      "pass": true,
+      "state": "HOLD",
+      "moved_deg": 0.0,
+      "run": "bench-20261120-012147",
+      "commit": "c6aad51"
+    },
+    "B-4": {
+      "pass": true,
+      "hold_after_ms": 152.9,
+      "moved_after_hold_deg": 0.0,
+      "run": "bench-20261120-012147",
+      "commit": "c6aad51"
+    },
+    "B-5": {
+      "pass": true,
+      "state": "STOP",
+      "moved_deg": 0.0,
+      "run": "bench-20261120-012147",
+      "commit": "c6aad51"
+    },
+    "B-6": {
+      "pass": true,
+      "operator": "confirmed",
+      "rest_pose": {
+        "shoulder_pan": -10.7,
+        "shoulder_lift": -103.8,
+        "elbow_flex": 93.1,
+        "wrist_flex": 71.3,
+        "wrist_roll": -4.2,
+        "gripper": 0.9
+      },
+      "run": "bench-20261120-011944",
+      "commit": "c6aad51"
+    },
+    "B-7": {
+      "pass": true,
+      "refused": "voltage out of range 4.5-5.5 V: shoulder_pan 11.8 V, shoulder_lift 11.9 V, elbow_flex 11.9 V, wrist_flex 11.9 V, wrist_roll 12.0 V, gripper 11.9 V. Is this the right arm and config?",
+      "run": "bench-20261120-002951",
+      "commit": "d27d897"
+    },
+    "B-8": {
+      "pass": true,
+      "run": "bench-20261120-011944",
+      "commit": "c6aad51"
+    }
+  },
+  "runs": {
+    "bench-20261120-002951": {
+      "commit": "d27d897",
+      "counters": {
+        "steps": 1804,
+        "clip_limit": {
+          "shoulder_pan": 201,
+          "shoulder_lift": 190,
+          "elbow_flex": 181,
+          "wrist_flex": 185,
+          "wrist_roll": 0,
+          "gripper": 122
+        },
+        "clip_step": {
+          "shoulder_pan": 357,
+          "shoulder_lift": 506,
+          "elbow_flex": 909,
+          "wrist_flex": 366,
+          "wrist_roll": 0,
+          "gripper": 126
+        },
+        "bad_actions": 6,
+        "holds_watchdog": 5,
+        "holds_bad": 5,
+        "longest_gap_ms": 13130.307107998306,
+        "stops": 1,
+        "stop_reason": "bad_actions",
+        "volt_min": 11.7,
+        "volt_max": 12.0,
+        "temp_max": 38,
+        "bus_retries": 0
+      }
+    },
+    "bench-20261120-011944": {
+      "commit": "c6aad51",
+      "counters": {
+        "steps": 771,
+        "clip_limit": {
+          "shoulder_pan": 96,
+          "shoulder_lift": 38,
+          "elbow_flex": 65,
+          "wrist_flex": 83,
+          "wrist_roll": 0,
+          "gripper": 75
+        },
+        "clip_step": {
+          "shoulder_pan": 157,
+          "shoulder_lift": 64,
+          "elbow_flex": 113,
+          "wrist_flex": 137,
+          "wrist_roll": 0,
+          "gripper": 42
+        },
+        "clip_follow": {
+          "shoulder_pan": 137,
+          "shoulder_lift": 39,
+          "elbow_flex": 69,
+          "wrist_flex": 120,
+          "wrist_roll": 0,
+          "gripper": 22
+        },
+        "bad_actions": 0,
+        "holds_watchdog": 0,
+        "holds_bad": 0,
+        "longest_gap_ms": 34.03794899895729,
+        "stops": 0,
+        "stop_reason": null,
+        "volt_min": 11.7,
+        "volt_max": 12.0,
+        "temp_max": 37,
+        "bus_retries": 0
+      }
+    },
+    "bench-20261120-012147": {
+      "commit": "c6aad51",
+      "counters": {
+        "steps": 181,
+        "clip_limit": {
+          "shoulder_pan": 0,
+          "shoulder_lift": 0,
+          "elbow_flex": 0,
+          "wrist_flex": 0,
+          "wrist_roll": 0,
+          "gripper": 0
+        },
+        "clip_step": {
+          "shoulder_pan": 3,
+          "shoulder_lift": 0,
+          "elbow_flex": 32,
+          "wrist_flex": 0,
+          "wrist_roll": 0,
+          "gripper": 0
+        },
+        "clip_follow": {
+          "shoulder_pan": 0,
+          "shoulder_lift": 0,
+          "elbow_flex": 24,
+          "wrist_flex": 0,
+          "wrist_roll": 0,
+          "gripper": 0
+        },
+        "bad_actions": 6,
+        "holds_watchdog": 4,
+        "holds_bad": 5,
+        "longest_gap_ms": 5891.029108001021,
+        "stops": 1,
+        "stop_reason": "bad_actions",
+        "volt_min": 11.7,
+        "volt_max": 12.0,
+        "temp_max": 34,
+        "bus_retries": 0
+      }
+    }
+  },
+  "notes": [
+    "B-7 ran on d27d897. The voltage check it tests did not change after that.",
+    "B-1 earlier runs failed: the step cap stalled the servos, and the table limited shoulder_lift and elbow_flex. Fixed in bdf2a64, 0ead282, 235a2bd, c6aad51.",
+    "Joint limits hold one joint at a time. A gripper height check is still needed before policy runs."
+  ],
+  "git": {
+    "commit": "c6aad51bceead601b5eb81cac65ca9c4c5625d6c"
+  }
+}

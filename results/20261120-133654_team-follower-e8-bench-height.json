@@ -1,0 +1,263 @@
+{
+  "kind": "e8_bench_test",
+  "arm": "team_follower (SO-ARM101 Pro, 12 V)",
+  "height_check": true,
+  "timestamp": "2026-11-20T21:38:00.162212+00:00",
+  "config": {
+    "file": "configs/safety/team_follower.yaml",
+    "sha256": "34949ab0d3e70544bb93b35aa3c8a9329fe60672c606ec2722d95cdcd7d01dbb"
+  },
+  "result": "PASS",
+  "cases": {
+    "B-1": {
+      "pass": true,
+      "past_limit_deg": {
+        "shoulder_pan.lo": -0.45,
+        "shoulder_pan.hi": -0.45,
+        "shoulder_lift.lo": -0.21,
+        "shoulder_lift.hi": -0.07,
+        "elbow_flex.lo": -0.19,
+        "elbow_flex.hi": -7.52,
+        "wrist_flex.lo": -0.27,
+        "wrist_flex.hi": -0.45,
+        "gripper.lo": -0.45,
+        "gripper.hi": -0.52
+      },
+      "short_deg": {},
+      "stopped_by_height_deg": {
+        "elbow_flex.hi": 7.5
+      },
+      "run": "bench-20261120-133654",
+      "commit": "20f9aa5"
+    },
+    "B-2": {
+      "pass": true,
+      "max_step_deg": 2.99,
+      "moving_steps": 19,
+      "run": "bench-20261120-012147",
+      "commit": "c6aad51"
+    },
+    "B-3": {
+      "pass": true,
+      "state": "HOLD",
+      "moved_deg": 0.0,
+      "run": "bench-20261120-012147",
+      "commit": "c6aad51"
+    },
+    "B-4": {
+      "pass": true,
+      "hold_after_ms": 152.9,
+      "moved_after_hold_deg": 0.0,
+      "run": "bench-20261120-012147",
+      "commit": "c6aad51"
+    },
+    "B-5": {
+      "pass": true,
+      "state": "STOP",
+      "moved_deg": 0.0,
+      "run": "bench-20261120-012147",
+      "commit": "c6aad51"
+    },
+    "B-6": {
+      "pass": true,
+      "operator": "confirmed",
+      "rest_pose": {
+        "shoulder_pan": -10.7,
+        "shoulder_lift": -103.8,
+        "elbow_flex": 93.1,
+        "wrist_flex": 71.3,
+        "wrist_roll": -4.2,
+        "gripper": 0.9
+      },
+      "run": "bench-20261120-133654",
+      "commit": "20f9aa5"
+    },
+    "B-7": {
+      "pass": true,
+      "refused": "voltage out of range 4.5-5.5 V: shoulder_pan 11.8 V, shoulder_lift 11.9 V, elbow_flex 11.9 V, wrist_flex 11.9 V, wrist_roll 12.0 V, gripper 11.9 V. Is this the right arm and config?",
+      "run": "bench-20261120-002951",
+      "commit": "d27d897"
+    },
+    "B-8": {
+      "pass": true,
+      "run": "bench-20261120-133654",
+      "commit": "20f9aa5"
+    },
+    "B-9": {
+      "pass": true,
+      "lowest_above_table_mm": 18.2,
+      "floor_mm": 10.0,
+      "clip_height_steps": 209,
+      "run": "bench-20261120-133415",
+      "commit": "db33fb6"
+    }
+  },
+  "runs": {
+    "bench-20261120-002951": {
+      "commit": "d27d897",
+      "counters": {
+        "steps": 1804,
+        "clip_limit": {
+          "shoulder_pan": 201,
+          "shoulder_lift": 190,
+          "elbow_flex": 181,
+          "wrist_flex": 185,
+          "wrist_roll": 0,
+          "gripper": 122
+        },
+        "clip_step": {
+          "shoulder_pan": 357,
+          "shoulder_lift": 506,
+          "elbow_flex": 909,
+          "wrist_flex": 366,
+          "wrist_roll": 0,
+          "gripper": 126
+        },
+        "bad_actions": 6,
+        "holds_watchdog": 5,
+        "holds_bad": 5,
+        "longest_gap_ms": 13130.307107998306,
+        "stops": 1,
+        "stop_reason": "bad_actions",
+        "volt_min": 11.7,
+        "volt_max": 12.0,
+        "temp_max": 38,
+        "bus_retries": 0
+      }
+    },
+    "bench-20261120-012147": {
+      "commit": "c6aad51",
+      "counters": {
+        "steps": 181,
+        "clip_limit": {
+          "shoulder_pan": 0,
+          "shoulder_lift": 0,
+          "elbow_flex": 0,
+          "wrist_flex": 0,
+          "wrist_roll": 0,
+          "gripper": 0
+        },
+        "clip_step": {
+          "shoulder_pan": 3,
+          "shoulder_lift": 0,
+          "elbow_flex": 32,
+          "wrist_flex": 0,
+          "wrist_roll": 0,
+          "gripper": 0
+        },
+        "clip_follow": {
+          "shoulder_pan": 0,
+          "shoulder_lift": 0,
+          "elbow_flex": 24,
+          "wrist_flex": 0,
+          "wrist_roll": 0,
+          "gripper": 0
+        },
+        "bad_actions": 6,
+        "holds_watchdog": 4,
+        "holds_bad": 5,
+        "longest_gap_ms": 5891.029108001021,
+        "stops": 1,
+        "stop_reason": "bad_actions",
+        "volt_min": 11.7,
+        "volt_max": 12.0,
+        "temp_max": 34,
+        "bus_retries": 0
+      }
+    },
+    "bench-20261120-133415": {
+      "commit": "db33fb6",
+      "counters": {
+        "steps": 1054,
+        "clip_limit": {
+          "shoulder_pan": 100,
+          "shoulder_lift": 38,
+          "elbow_flex": 92,
+          "wrist_flex": 83,
+          "wrist_roll": 0,
+          "gripper": 74
+        },
+        "clip_step": {
+          "shoulder_pan": 158,
+          "shoulder_lift": 91,
+          "elbow_flex": 421,
+          "wrist_flex": 137,
+          "wrist_roll": 0,
+          "gripper": 42
+        },
+        "clip_follow": {
+          "shoulder_pan": 138,
+          "shoulder_lift": 56,
+          "elbow_flex": 111,
+          "wrist_flex": 120,
+          "wrist_roll": 0,
+          "gripper": 29
+        },
+        "clip_height": {
+          "arm": 245
+        },
+        "bad_actions": 0,
+        "holds_watchdog": 1,
+        "holds_bad": 0,
+        "longest_gap_ms": 12519.634227000097,
+        "stops": 0,
+        "stop_reason": null,
+        "volt_min": 11.7,
+        "volt_max": 12.0,
+        "temp_max": 38,
+        "bus_retries": 0
+      }
+    },
+    "bench-20261120-133654": {
+      "commit": "20f9aa5",
+      "counters": {
+        "steps": 758,
+        "clip_limit": {
+          "shoulder_pan": 98,
+          "shoulder_lift": 38,
+          "elbow_flex": 94,
+          "wrist_flex": 83,
+          "wrist_roll": 0,
+          "gripper": 75
+        },
+        "clip_step": {
+          "shoulder_pan": 159,
+          "shoulder_lift": 63,
+          "elbow_flex": 146,
+          "wrist_flex": 137,
+          "wrist_roll": 0,
+          "gripper": 44
+        },
+        "clip_follow": {
+          "shoulder_pan": 138,
+          "shoulder_lift": 36,
+          "elbow_flex": 69,
+          "wrist_flex": 120,
+          "wrist_roll": 0,
+          "gripper": 26
+        },
+        "clip_height": {
+          "arm": 38
+        },
+        "bad_actions": 0,
+        "holds_watchdog": 0,
+        "holds_bad": 0,
+        "longest_gap_ms": 33.612137000091025,
+        "stops": 0,
+        "stop_reason": null,
+        "volt_min": 11.7,
+        "volt_max": 12.0,
+        "temp_max": 35,
+        "bus_retries": 0
+      }
+    }
+  },
+  "notes": [
+    "Height check on, table calibrated in db33fb6 (4.6 mm rms).",
+    "B-1 and B-9 ran with the height check. B-2 to B-5 ran on c6aad51, before the height check existed, and B-7 on d27d897. The height check only holds goals back, and those cases stayed far above the table.",
+    "In B-1 the height check stopped elbow_flex 7.5 degrees before its +60 limit, near the table."
+  ],
+  "git": {
+    "commit": "20f9aa52afeaa4ab9d304dc668344e888dc5f1c2"
+  }
+}
