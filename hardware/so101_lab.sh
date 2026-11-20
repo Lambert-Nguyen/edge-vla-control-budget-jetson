@@ -24,6 +24,10 @@
 #                  camera straight into a USB 3 port on the Jetson, not a hub: `check` should
 #                  show 5000M for it, not 480M
 #   CAM_W, CAM_H, CAM_FPS   camera mode (default 640x480 at 30)
+#   CAM1_FPS       frame rate of CAM1 only (default 60, in MJPG). Our Brio gives about 88%
+#                  of the rate it is set to: about 26 fps when set to 30, and about 54 when
+#                  set to 60. At 60 a new frame is always ready for each 30 Hz step. Set
+#                  CAM1_FPS=30 for a camera that cannot do 60
 #   FPS            control rate for demos and policy runs (default 30, the team's control
 #                  rate). Demos and the policy that learns from them must share it
 #   TASK           the instruction, the same for every demo and for the policy
@@ -55,9 +59,10 @@
 #     is unplugged, so set them again after a replug. This needs v4l-utils
 #     (sudo apt install v4l-utils). Turn the automatic modes off first, then set values:
 #       v4l2-ctl -d "$CAM1" -c focus_automatic_continuous=0 -c auto_exposure=1 -c white_balance_automatic=0
-#       v4l2-ctl -d "$CAM1" -c focus_absolute=30 -c exposure_time_absolute=250 -c white_balance_temperature=4000
-#     These are start values. Adjust them while `preview` runs, and keep exposure_time_absolute
-#     at 333 or less (in 100 us units, so 33 ms), or the camera drops below 30 fps.
+#       v4l2-ctl -d "$CAM1" -c focus_absolute=30 -c exposure_time_absolute=160 -c gain=80 -c white_balance_temperature=6000
+#     These are the values for our desk lamp setup (Nov 20). With 4000 K and no gain the
+#     picture was dark and blue. Use more gain, not more exposure, to make it brighter. Adjust them while `preview` runs, and keep exposure_time_absolute
+#     at 166 or less (in 100 us units, so 16.6 ms), or the camera cannot reach 60 fps.
 #     `v4l2-ctl -d "$CAM1" -L` lists every control with its range.
 
 set -euo pipefail
@@ -77,6 +82,7 @@ LEADER_ID="${LEADER_ID:-lab_leader}"
 CAM_W="${CAM_W:-640}"
 CAM_H="${CAM_H:-480}"
 CAM_FPS="${CAM_FPS:-30}"
+CAM1_FPS="${CAM1_FPS:-60}"
 FPS="${FPS:-30}"
 TASK="${TASK:-Pick up the cube and put it in the box.}"
 EPISODE_S="${EPISODE_S:-20}"
@@ -94,7 +100,8 @@ leader=(--teleop.type=so101_leader --teleop.port="$LEADER_PORT" --teleop.id="$LE
 
 cameras() {  # the --robot.cameras argument, from CAM1 and CAM2
   [ -n "${CAM1:-}" ] || die "Set CAM1 to a camera, e.g. CAM1=/dev/v4l/by-id/...-video-index0. See: $0 check"
-  local spec="camera1: {type: opencv, index_or_path: $CAM1, width: $CAM_W, height: $CAM_H, fps: $CAM_FPS}"
+  # MJPG, because the Brio sends 640x480 above 30 fps only in MJPG.
+  local spec="camera1: {type: opencv, index_or_path: $CAM1, width: $CAM_W, height: $CAM_H, fps: $CAM1_FPS, fourcc: MJPG}"
   if [ -n "${CAM2:-}" ]; then
     spec="$spec, camera2: {type: opencv, index_or_path: $CAM2, width: $CAM_W, height: $CAM_H, fps: $CAM_FPS}"
   fi
