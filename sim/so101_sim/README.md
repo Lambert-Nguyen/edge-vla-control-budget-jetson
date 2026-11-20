@@ -178,10 +178,9 @@ repo that generated it; check that commit out to regenerate it exactly.
 
 | Dataset | Made with | Contents |
 | --- | --- | --- |
-| [`duylam1407/so101_sim_cube_box`](https://huggingface.co/datasets/duylam1407/so101_sim_cube_box) (private) | commit `6e41556`, `python -m so101_sim generate --name sim_cube_box --episodes 200 --randomize full` | 200 expert episodes, 55,067 frames, 30 fps, seeds 0–199, default start spread; 200/200 expert successes; 662 MB. Hub revision `d926fb5`, tag `v3.0` |
+| [`duylam1407/so101_sim_cube_box`](https://huggingface.co/datasets/duylam1407/so101_sim_cube_box) (public) | commit `6e41556`, `python -m so101_sim generate --name sim_cube_box --episodes 200 --randomize full` | 200 expert episodes, 55,067 frames, 30 fps, seeds 0–199, default start spread; 200/200 expert successes; 662 MB. Hub revision `d926fb5`, tag `v3.0` |
 
-`lerobot-train` downloads a dataset by its id, so no copying is needed. Log in
-once with `hf auth login` using an account that can read the repo, then:
+`lerobot-train` downloads a dataset by its id, so no copying or login is needed:
 
 ```bash
 lerobot-train --policy.path=lerobot/smolvla_base \
