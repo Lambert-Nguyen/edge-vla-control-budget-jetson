@@ -16,12 +16,14 @@ so on macOS create and use the environment on the main thread.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import mujoco
 import numpy as np
 
-from .config import JOINT_NAMES, SCENE_XML, START_MIN_HEIGHT, START_SPREAD, SimConfig
+from . import objects
+from .config import JOINT_NAMES, SCENE_XML, SCENES, START_MIN_HEIGHT, START_SPREAD, SimConfig
+from .noise import EpisodeNoise
 from .units import JointMap
 
 # Dataset camera key -> camera name in the MJCF.
@@ -35,6 +37,16 @@ CAMERA_SOURCES = {"camera1": "camera1", "camera2": "wrist_cam"}
 TCP_OFFSET = np.array([-0.008, 0.0, -0.001])
 
 GRIPPER_BODIES = ("gripper", "moving_jaw_so101_v1", "camera_mount")
+
+# Extra objects in the scene XML for the multi-object scenes.
+DISTRACTOR_NAMES = ("distractor1", "distractor2")
+# Closest two objects' footprints may come, metres: room for the open jaws (about
+# 3 cm either side of the object to pick up) to come down without touching another.
+OBJECT_GAP = 0.035
+# Where distractors may stand, metres: wider than the pick-up object's spawn area,
+# still within the arm's reach and both cameras' view.
+DISTRACTOR_X = (0.13, 0.28)
+DISTRACTOR_Y = (-0.15, 0.15)
 
 
 @dataclass
@@ -119,6 +131,40 @@ class SO101Env:
         self.box_height = float(max(m.geom_pos[g][2] + m.geom_size[g][2] for g in walls))
         self.cube_half = float(m.geom_size[self.cube_geom][0])
 
+        # The object this episode uses. With objects ("cube",) the scene's own 3 cm
+        # cube is never touched, so datasets made before objects existed regenerate
+        # exactly; otherwise reset() reshapes the object geom (objects.py).
+        unknown = set(self.cfg.objects) - set(objects.SIZE_RANGES)
+        if unknown or not self.cfg.objects:
+            raise ValueError(f"unknown objects {sorted(unknown)}; choose from {', '.join(objects.SIZE_RANGES)}")
+        if self.cfg.scene not in SCENES:
+            raise ValueError(f"unknown scene {self.cfg.scene!r}; choose from {', '.join(SCENES)}")
+        self.original_cube = tuple(self.cfg.objects) == ("cube",) and self.cfg.scene == "single"
+        self.obj = replace(objects.make_object("cube", [self.cube_half]),
+                           mass=float(m.body_mass[self.cube_body]),
+                           inertia=tuple(float(v) for v in m.body_inertia[self.cube_body]))
+        self.scene = "single" if self.cfg.scene == "mixed" else self.cfg.scene   # this episode's
+        self.target_label = "cube"          # how the instruction names the object to pick up
+        self.target_color: str | None = None
+
+        # Distractors for the "colors" and "kinds" scenes, parked under the table
+        # (weightless, no contacts) until placed.
+        self.distractors = []
+        for name in DISTRACTOR_NAMES:
+            b = name2id(mujoco.mjtObj.mjOBJ_BODY, name)
+            j = m.body_jntadr[b]
+            self.distractors.append({"body": b, "geom": name2id(mujoco.mjtObj.mjOBJ_GEOM, name),
+                                     "qadr": m.jnt_qposadr[j],
+                                     "mat": name2id(mujoco.mjtObj.mjOBJ_MATERIAL, name),
+                                     "spec": None, "color": None})
+
+        # Noise (noise.py) perturbs the actuator gains and the wrist camera mount; keep
+        # the model's values to restore them.
+        self.noise: EpisodeNoise | None = None
+        self._default_kp = m.actuator_gainprm[self.act, 0].copy()
+        self._wrist_cam = self.cam_ids["camera2"]
+        self._default_wrist_cam = (m.cam_pos[self._wrist_cam].copy(), m.cam_quat[self._wrist_cam].copy())
+
         # Defaults that randomization perturbs, kept so that "none" restores them.
         self._default_rgba = m.geom_rgba.copy()
         self._default_mat_rgba = m.mat_rgba.copy()
@@ -132,9 +178,10 @@ class SO101Env:
 
         self.home = self.jmap.to_sim(np.array(self.cfg.home_pose, dtype=float))
         self.start = self.home.copy()       # this episode's start pose, sim radians
-        self._fixed_bodies = {0, self.box_body, self.cube_body}
+        self._fixed_bodies = {0, self.box_body, self.cube_body} | {d["body"] for d in self.distractors}
         self.step_count = 0
-        self.task = self.cfg.task.instruction
+        self.instruction = self.cfg.task.instruction
+        self.task = self.instruction
         self._aim_camera1(self.cfg.camera1_pos, self.cfg.camera1_target, self.cfg.camera1_fovy)
 
     # ----------------------------------------------------------------- rendering
@@ -161,11 +208,38 @@ class SO101Env:
         return self.data.qpos[self.qadr].copy()
 
     def state(self) -> np.ndarray:
-        return self.jmap.to_lerobot(self.qpos_arm())
+        """Joint readings in LeRobot units, with encoder noise when noise is on."""
+        if self.noise is None:
+            return self.jmap.to_lerobot(self.qpos_arm())
+        return self.noise.quantize(self.jmap.to_lerobot(self.noise.reading(self.qpos_arm())))
+
+    def action_for(self, q: np.ndarray) -> np.ndarray:
+        """The action (LeRobot units) that puts the arm at joint angles q (sim radians).
+
+        With noise on, this undoes the calibration offset, as a person steering by
+        eye would; backlash and jitter remain. The scripted expert acts through it.
+        """
+        if self.noise is not None:
+            q = self.noise.compensate(q)
+        return self.jmap.to_lerobot(q)
+
+    def set_instruction(self, text: str) -> None:
+        """Instruction for the task; 'the cube' in it becomes this episode's object."""
+        self.instruction = text
+        self.task = self._task_text()
+
+    def _task_text(self) -> str:
+        if self.original_cube:
+            return self.instruction
+        return self.instruction.replace("the cube", f"the {self.target_label}")
 
     def observe(self, render: bool | None = None) -> Obs:
         render = self.render_enabled if render is None else render
-        images = {k: self.render_camera(k) for k in self.cfg.cameras} if render else {}
+        images = {}
+        if render:
+            for k in self.cfg.cameras:
+                img = self.render_camera(k)
+                images[k] = img if self.noise is None else self.noise.image(k, img)
         return Obs(self.state(), images)
 
     def cube_pose(self) -> tuple[np.ndarray, float]:
@@ -193,7 +267,10 @@ class SO101Env:
     def cube_in_box(self) -> bool:
         pos, _ = self.cube_pose()
         rel = pos - self.box_pos()
-        margin = self.box_inner_half - 0.5 * self.cube_half
+        # The original cube keeps its original check; a long object lying in the box
+        # can sit further off centre, so other objects use their narrow side.
+        half = self.cube_half if self.original_cube else self.obj.grip_half
+        margin = self.box_inner_half - 0.5 * half
         return bool(abs(rel[0]) < margin and abs(rel[1]) < margin and pos[2] < self.box_height)
 
     def is_success(self) -> bool:
@@ -210,9 +287,12 @@ class SO101Env:
     def apply_action(self, action: np.ndarray) -> None:
         target = self.jmap.to_sim(np.asarray(action, dtype=np.float64))
         if self.cfg.max_step_deg is not None:
-            cur = self.qpos_arm()
+            # Like max_relative_target: relative to the position the arm reports.
+            cur = self.qpos_arm() if self.noise is None else self.qpos_arm() - self.noise.offset
             lim = math.radians(self.cfg.max_step_deg)
             target = np.clip(target, cur - lim, cur + lim)
+        if self.noise is not None:
+            target = self.noise.command(target)
         self.data.ctrl[self.act] = np.clip(target, self.ctrl_lo, self.ctrl_hi)
         mujoco.mj_step(self.model, self.data, nstep=self.cfg.substeps)
         self.step_count += 1
@@ -229,30 +309,153 @@ class SO101Env:
             self.rng = np.random.default_rng(seed)
         m, d = self.model, self.data
         level = self.cfg.randomize
+        # The object and the noise come from their own generators, seeded from the
+        # episode seed, so the layout drawn from self.rng is the same whatever
+        # objects or noise scale are chosen.
+        base = 0
+        if not self.original_cube or self.cfg.noise > 0:
+            base = int(seed) if seed is not None else int(self.rng.integers(2 ** 31))
         mass_before = float(m.body_mass[self.cube_body])
+        changed = False
+        if not self.original_cube:
+            orng = np.random.default_rng([base, 1])
+            self.scene = self.cfg.scene
+            if self.scene == "mixed":
+                self.scene = str(orng.choice(["single", "colors", "kinds"]))
+            objs, colors, self.target_label = objects.sample_scene(
+                self.scene, self.cfg.objects, orng, vary_size=level != "none")
+            self.obj, self.target_color = objs[0], colors[0]
+            objects.apply(m, self.cube_body, self.cube_geom, self.obj)
+            for i, dist in enumerate(self.distractors):
+                k = i + 1
+                dist["spec"], dist["color"] = (objs[k], colors[k]) if k < len(objs) else (None, None)
+                if dist["spec"] is not None:
+                    objects.apply(m, dist["body"], dist["geom"], dist["spec"])
+                self._set_active(dist, dist["spec"] is not None)
+            changed = True
         self._randomize_appearance(level)
-        if float(m.body_mass[self.cube_body]) != mass_before:
-            # Masses feed constants the solver precomputes at compile time
+        if not self.original_cube and self.scene != "single":
+            crng = np.random.default_rng([base, 4])
+            jitter = 0.05 if level == "full" else 0.0
+            m.mat_rgba[self._cube_mat, :3] = objects.color_rgb(self.target_color, crng, jitter)
+            for dist in self.distractors:
+                if dist["color"] is not None:
+                    m.mat_rgba[dist["mat"], :3] = objects.color_rgb(dist["color"], crng, jitter)
+        changed |= self._apply_noise(np.random.default_rng([base, 2]))
+        if changed or float(m.body_mass[self.cube_body]) != mass_before:
+            # Masses and shapes feed constants the solver precomputes at compile time
             # (invweight0 and friends). Recompute them, or a lighter cube makes the
             # contact solver blow up. mj_setConst uses d as scratch, so call it
             # before the episode state is written.
             mujoco.mj_setConst(m, d)
+        self.task = self._task_text()
         mujoco.mj_resetData(m, d)
         cube_xy, cube_yaw, box_xy = self._sample_layout(level)
         m.body_pos[self.box_body][:2] = box_xy
 
         c = self.cube_qadr
-        d.qpos[c:c + 3] = [cube_xy[0], cube_xy[1], self.cube_half + 0.0005]
+        d.qpos[c:c + 3] = [cube_xy[0], cube_xy[1], self.obj.half_height + 0.0005]
         d.qpos[c + 3:c + 7] = yaw_quat(cube_yaw)
+        if not self.original_cube:
+            self._place_distractors(np.random.default_rng([base, 3]), cube_xy, box_xy)
         # Drawn after the layout, so a seed gives the same layout at any spread.
         self.start = self._sample_start(level)
         d.qpos[self.qadr] = self.start
         d.ctrl[self.act] = self.start
+        if self.noise is not None:
+            self.noise._held = self.start.copy()     # the gears rest at the start pose
         mujoco.mj_forward(m, d)
         self.hold(0.3)                       # let the cube and the arm settle
         d.time = 0.0
         self.step_count = 0
         return self.observe(render)
+
+    def _set_active(self, dist: dict, active: bool) -> None:
+        """Bring a distractor into the scene, or park it: weightless, without contacts."""
+        m = self.model
+        flag = int(m.geom_contype[self.cube_geom]) if active else 0
+        m.geom_contype[dist["geom"]] = flag
+        m.geom_conaffinity[dist["geom"]] = int(m.geom_conaffinity[self.cube_geom]) if active else 0
+        m.body_gravcomp[dist["body"]] = 0.0 if active else 1.0
+
+    def _place_distractors(self, rng: np.random.Generator, target_xy: np.ndarray, box_xy: np.ndarray) -> None:
+        """Put the active distractors on the table, clear of the box and each other.
+
+        They spread over a wider area than the object to pick up (which keeps its
+        original spawn area and layout). A distractor that finds no room is parked.
+        """
+        t = self.cfg.task
+        placed = [(np.asarray(target_xy), self.obj.footprint)]
+        d = self.data
+        for dist in self.distractors:
+            spec = dist["spec"]
+            if spec is None:
+                continue
+            keep_out = self.box_outer_half + spec.footprint + t.clearance
+            for _ in range(400):
+                xy = np.array([rng.uniform(*DISTRACTOR_X), rng.uniform(*DISTRACTOR_Y)])
+                if np.max(np.abs(xy - box_xy)) <= keep_out:
+                    continue
+                if all(np.linalg.norm(xy - p) >= spec.footprint + f + OBJECT_GAP for p, f in placed):
+                    break
+            else:
+                dist["spec"] = dist["color"] = None
+                self._set_active(dist, False)
+                continue
+            yaw = math.radians(rng.uniform(*t.cube_yaw_deg)) + (math.pi / 2 if spec.symmetry == 2 else 0.0)
+            q = dist["qadr"]
+            d.qpos[q:q + 3] = [xy[0], xy[1], spec.half_height + 0.0005]
+            d.qpos[q + 3:q + 7] = yaw_quat(yaw)
+            placed.append((xy, spec.footprint))
+
+    def distractor_in_box(self) -> bool:
+        """True if any other object ended up in the box: the wrong one was picked."""
+        box = self.box_pos()
+        for dist in self.distractors:
+            if dist["spec"] is None:
+                continue
+            pos = self.data.xpos[dist["body"]]
+            rel = pos - box
+            if abs(rel[0]) < self.box_inner_half and abs(rel[1]) < self.box_inner_half and pos[2] < self.box_height:
+                return True
+        return False
+
+    def episode_info(self) -> dict:
+        """What this episode put on the table, for dataset logs and eval records."""
+        info = {"scene": self.scene, "target": self.target_label, "task": self.task,
+                "object": {"kind": self.obj.kind, "size_m": [round(v, 4) for v in self.obj.size if v]}}
+        others = [{"kind": dist["spec"].kind, "color": dist["color"]} for dist in self.distractors if dist["spec"]]
+        if others:
+            info["distractors"] = others
+        if self.noise is not None:
+            info["noise"] = self.noise.summary()
+        return info
+
+    def _apply_noise(self, rng: np.random.Generator) -> bool:
+        """Draw this episode's noise, or restore the perfect robot. True if anything changed."""
+        m = self.model
+        was_noisy = self.noise is not None
+        m.actuator_gainprm[self.act, 0] = self._default_kp
+        m.actuator_biasprm[self.act, 1] = -self._default_kp
+        m.cam_pos[self._wrist_cam], m.cam_quat[self._wrist_cam] = (v.copy() for v in self._default_wrist_cam)
+        if self.cfg.noise <= 0:
+            self.noise = None
+            return was_noisy
+        gripper_rad_per_unit = float(self.ctrl_hi[5] - self.ctrl_lo[5]) / 100.0
+        self.noise = EpisodeNoise(self.cfg.noise, rng, self.cfg.cameras, gripper_rad_per_unit)
+        kp = self._default_kp * self.noise.kp_scale
+        m.actuator_gainprm[self.act, 0] = kp
+        m.actuator_biasprm[self.act, 1] = -kp
+        m.cam_pos[self._wrist_cam] += self.noise.wrist_cam_pos
+        rot = self.noise.wrist_cam_rot
+        angle = float(np.linalg.norm(rot))
+        if angle > 0:
+            dq = np.empty(4)
+            mujoco.mju_axisAngle2Quat(dq, rot / angle, angle)
+            q = np.empty(4)
+            mujoco.mju_mulQuat(q, m.cam_quat[self._wrist_cam], dq)
+            m.cam_quat[self._wrist_cam] = q
+        return True
 
     def _sample_layout(self, level: str):
         t = self.cfg.task
@@ -261,7 +464,7 @@ class SO101Env:
         rng = self.rng
         side = rng.choice([-1.0, 1.0])
         box_xy = np.array([rng.uniform(*t.box_x), side * rng.uniform(*t.box_abs_y)])
-        keep_out = self.box_outer_half + self.cube_half * math.sqrt(2) + t.clearance
+        keep_out = self.box_outer_half + self.obj.footprint + t.clearance
         for _ in range(200):
             cube_xy = np.array([rng.uniform(*t.cube_x), rng.uniform(*t.cube_y)])
             if np.max(np.abs(cube_xy - box_xy)) > keep_out:
@@ -269,6 +472,8 @@ class SO101Env:
         else:   # fall back to the far side of the spawn area
             cube_xy = np.array([np.mean(t.cube_x), -side * max(abs(v) for v in t.cube_y)])
         yaw = math.radians(rng.uniform(*t.cube_yaw_deg))
+        if self.obj.symmetry == 2:
+            yaw += math.pi / 2          # long side across the reach (objects.py says why)
         return cube_xy, yaw, box_xy
 
     def _sample_start(self, level: str) -> np.ndarray:
@@ -306,8 +511,11 @@ class SO101Env:
         m.light_diffuse[:] = diffuse
         m.light_pos[:] = lpos
         m.light_dir[:] = ldir
-        m.body_mass[self.cube_body] = self._default_cube_mass
-        m.body_inertia[self.cube_body] = self._default_cube_inertia
+        base_mass, base_inertia = self._default_cube_mass, self._default_cube_inertia
+        if not self.original_cube:
+            base_mass, base_inertia = self.obj.mass, np.asarray(self.obj.inertia)
+        m.body_mass[self.cube_body] = base_mass
+        m.body_inertia[self.cube_body] = base_inertia
         m.geom_friction[self.cube_geom] = self._default_cube_friction
         pos, target, fovy = self.cfg.camera1_pos, self.cfg.camera1_target, self.cfg.camera1_fovy
 
@@ -322,9 +530,13 @@ class SO101Env:
                                                     + rng.uniform(-0.15, 0.15, 3), 0, 1)
             m.mat_rgba[self._table_mat, :3] = np.clip(rng.uniform(0.6, 1.0) * np.ones(3)
                                                       + rng.uniform(-0.08, 0.08, 3), 0.4, 1.0)
-            mass = rng.uniform(0.02, 0.05)
+            # 20-50 g for the original 30 g cube; the same -33%/+67% for other objects.
+            if self.original_cube:
+                mass = rng.uniform(0.02, 0.05)
+            else:
+                mass = base_mass * rng.uniform(2 / 3, 5 / 3)
             m.body_mass[self.cube_body] = mass
-            m.body_inertia[self.cube_body] = self._default_cube_inertia * mass / self._default_cube_mass
+            m.body_inertia[self.cube_body] = base_inertia * mass / base_mass
             m.geom_friction[self.cube_geom, 0] = rng.uniform(0.7, 1.2)
             pos = tuple(np.asarray(pos) + rng.uniform(-0.02, 0.02, 3))
             target = tuple(np.asarray(target) + rng.uniform(-0.02, 0.02, 3))

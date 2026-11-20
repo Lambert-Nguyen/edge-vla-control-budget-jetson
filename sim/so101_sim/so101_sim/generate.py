@@ -39,7 +39,7 @@ def generate(name: str, episodes: int, cfg: SimConfig, seed: int = 0, root: str 
             n = expert.total_steps + int(tail_s * cfg.fps)
             for _ in range(n):
                 action = expert.act()
-                rec.add(obs, action)
+                rec.add(obs, action, env.task)
                 obs = env.step(action)
             ok = env.is_success()
             attempts += 1
@@ -48,12 +48,15 @@ def generate(name: str, episodes: int, cfg: SimConfig, seed: int = 0, root: str 
                 saved += 1
                 log_path.parent.mkdir(parents=True, exist_ok=True)
                 with log_path.open("a") as f:
-                    f.write(json.dumps({"episode_index": idx, "seed": s, "success": bool(ok), "frames": n,
-                                        "randomize": cfg.randomize, "expert_speed": expert.speed,
-                                        "start": [round(float(v), 2) for v in env.jmap.to_lerobot(env.start)]})
-                            + "\n")
+                    entry = {"episode_index": idx, "seed": s, "success": bool(ok), "frames": n,
+                             "randomize": cfg.randomize, "expert_speed": expert.speed,
+                             "start": [round(float(v), 2) for v in env.jmap.to_lerobot(env.start)]}
+                    if not env.original_cube or env.noise is not None:
+                        entry.update(env.episode_info())
+                    f.write(json.dumps(entry) + "\n")
+                what = "" if env.original_cube else f"  {env.task}"
                 log(f"episode {idx:4d}  seed {s:6d}  {'success' if ok else 'FAILED '}  {n} frames  "
-                    f"[{saved}/{episodes}, {time.perf_counter() - t0:.0f}s]")
+                    f"[{saved}/{episodes}, {time.perf_counter() - t0:.0f}s]{what}")
             else:
                 rec.discard()
                 log(f"seed {s:6d}: expert failed, discarded")

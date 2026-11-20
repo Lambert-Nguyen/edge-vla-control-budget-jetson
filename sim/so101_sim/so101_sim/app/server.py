@@ -294,7 +294,7 @@ class SimApp:
             kb["pos"], _ = self.ik.fk(q)
         q[5] = kb["grip"]
         kb["q"] = q
-        return self.env.jmap.to_lerobot(q)
+        return self.env.action_for(q)
 
     def _teleop_ik(self, q: np.ndarray, pos: np.ndarray, want: float, now: float):
         """Put the jaws at pos, tilted as close to `want` as the joints allow.
@@ -529,7 +529,7 @@ class SimApp:
                 self.rec = None
             self.dataset_name = (c.get("name") or "sim_cube_box").strip()
             if c.get("task"):
-                self.env.task = c["task"].strip()
+                self.env.set_instruction(c["task"].strip())
             self.ensure_recorder()
         elif t == "record":
             self.start_episode()
@@ -619,7 +619,7 @@ class SimApp:
             self._last_cam_preview = now
         action = self.control(obs)
         if self.recording:
-            self.rec.add(obs, action)
+            self.rec.add(obs, action, self.env.task)
         self.env.apply_action(action)
         self.last_action = action
         if self.follower is not None and not self.fast:

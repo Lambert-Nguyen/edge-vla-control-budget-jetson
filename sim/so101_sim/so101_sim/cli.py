@@ -18,7 +18,8 @@ import sys
 import time
 from pathlib import Path
 
-from .config import HOME_POSE, RANDOMIZE_LEVELS, SimConfig
+from .config import (CAMERA1_PRESETS, HOME_POSE, OBJECT_KINDS, RANDOMIZE_LEVELS, SCENES, SimConfig, noise_label,
+                     parse_noise)
 
 
 def _floats(text: str, n: int) -> tuple[float, ...]:
@@ -39,10 +40,24 @@ def add_sim_args(p: argparse.ArgumentParser) -> None:
     g.add_argument("--height", type=int, default=480)
     g.add_argument("--cameras", default="camera1,camera2",
                    help="cameras to render and record: camera1 (front), camera2 (wrist)")
+    g.add_argument("--camera1", choices=tuple(CAMERA1_PRESETS), default="top",
+                   help="camera1 placement: top (default; 70 cm up, 30 cm in front, tilted back at the "
+                        "arm) or front (62 cm in front, 42 cm up; what datasets before 2026-11-20 used)")
     g.add_argument("--camera1-pos", type=lambda s: _floats(s, 3), metavar="X,Y,Z",
-                   help="front camera position, m (default 0.62,0,0.42)")
+                   help="camera1 position, m; overrides --camera1")
     g.add_argument("--camera1-target", type=lambda s: _floats(s, 3), metavar="X,Y,Z",
-                   help="point the front camera looks at, m (default 0.20,0,0)")
+                   help="point camera1 looks at, m; overrides --camera1")
+    g.add_argument("--objects", default="cube",
+                   help=f"objects to pick up, comma-separated, or 'all' ({','.join(OBJECT_KINDS)}); "
+                        "one is drawn per episode (default cube)")
+    g.add_argument("--scene", choices=SCENES, default="single",
+                   help="single: one object (default); colors: three of one kind in different colours, "
+                        "the instruction names the colour; kinds: three kinds in one colour, the "
+                        "instruction names the kind; mixed: one of the three per episode")
+    g.add_argument("--noise", default="none", metavar="LEVEL",
+                   help="sensor, servo and camera noise: none (default), real (our estimate of the lab "
+                        "rig), heavy (twice that), or a number (scale on real). For eval, a comma "
+                        "list runs a sweep (e.g. none,real,heavy)")
     g.add_argument("--max-step-deg", type=float, help="cap joint moves per step like MAX_STEP (default off)")
     g.add_argument("--joint-map", help="JSON with per-joint sign/offset if your real arm disagrees with the sim")
     g.add_argument("--home", type=lambda s: _floats(s, 6), metavar="6 VALUES",
@@ -52,10 +67,23 @@ def add_sim_args(p: argparse.ArgumentParser) -> None:
                         "30 degrees per joint (default), 0 starts every episode at --home")
 
 
-def sim_config(a: argparse.Namespace) -> SimConfig:
+def parse_objects(text: str) -> tuple[str, ...]:
+    if text.strip().lower() == "all":
+        return OBJECT_KINDS
+    kinds = tuple(dict.fromkeys(k.strip().lower() for k in text.split(",") if k.strip()))
+    unknown = [k for k in kinds if k not in OBJECT_KINDS]
+    if unknown or not kinds:
+        raise SystemExit(f"--objects: unknown {unknown or text!r}; choose from {', '.join(OBJECT_KINDS)} or all")
+    return kinds
+
+
+def sim_config(a: argparse.Namespace, noise: float | None = None) -> SimConfig:
+    pos, target = CAMERA1_PRESETS[a.camera1]
     kw = dict(fps=a.fps, episode_s=a.episode_s, width=a.width, height=a.height, randomize=a.randomize,
               cameras=tuple(c.strip() for c in a.cameras.split(",") if c.strip()),
-              max_step_deg=a.max_step_deg, start_spread=a.start_spread)
+              max_step_deg=a.max_step_deg, start_spread=a.start_spread,
+              camera1_pos=pos, camera1_target=target, objects=parse_objects(a.objects), scene=a.scene,
+              noise=parse_noise(a.noise) if noise is None else noise)
     if a.camera1_pos:
         kw["camera1_pos"] = a.camera1_pos
     if a.camera1_target:
@@ -125,7 +153,7 @@ def cmd_generate(a) -> int:
 
 def cmd_eval(a) -> int:
     from .policy_eval import LatencyModel, evaluate
-    cfg = sim_config(a)
+    noises = [parse_noise(v) for v in str(a.noise).split(",")]
     if a.latency_from:
         latencies = [LatencyModel.from_result(a.latency_from, jitter=not a.no_jitter)]
     else:
@@ -134,16 +162,21 @@ def cmd_eval(a) -> int:
     stamp = time.strftime("%Y%m%d-%H%M%S")
     name = policy_label(a.policy)
     rows = []
-    for lat in latencies:
-        out = out_dir / f"{stamp}_sim-eval_{name}_{a.mode}_{lat.mean_ms:.0f}ms.json" if not a.no_save else None
-        rec = evaluate(a.policy, cfg, a.episodes, lat, mode=a.mode, threshold=a.threshold, seed=a.seed,
-                       device=a.device, num_steps=a.num_steps, n_action_steps=a.n_action_steps, out=out)
-        rows.append((lat.mean_ms, rec))
+    for noise in noises:
+        cfg = sim_config(a, noise=noise)
+        tag = "" if noise == 0 else f"_noise-{noise_label(noise)}"
+        for lat in latencies:
+            out = (out_dir / f"{stamp}_sim-eval_{name}_{a.mode}_{lat.mean_ms:.0f}ms{tag}.json"
+                   if not a.no_save else None)
+            rec = evaluate(a.policy, cfg, a.episodes, lat, mode=a.mode, threshold=a.threshold, seed=a.seed,
+                           device=a.device, num_steps=a.num_steps, n_action_steps=a.n_action_steps, out=out)
+            rows.append((noise, lat.mean_ms, rec))
     if len(rows) > 1:
-        print("\nlatency_ms  success  wilson95        staleness_mean_ms  stall_fraction")
-        for ms, rec in rows:
+        print("\nnoise  latency_ms  success  wilson95   wrong_object  staleness_mean_ms  stall_fraction")
+        for noise, ms, rec in rows:
             s = rec["success"]
-            print(f"{ms:10.0f}  {s['k']:3d}/{s['n']:<3d}  {s['wilson95'][0]:.2f}-{s['wilson95'][1]:.2f}  "
+            print(f"{noise_label(noise):>5}  {ms:10.0f}  {s['k']:3d}/{s['n']:<3d}  "
+                  f"{s['wilson95'][0]:.2f}-{s['wilson95'][1]:.2f}  {rec['wrong_object_in_box']:12d}  "
                   f"{rec['staleness_ms']['mean']:17.0f}  {rec['stall_fraction']:14.3f}")
     return 0
 

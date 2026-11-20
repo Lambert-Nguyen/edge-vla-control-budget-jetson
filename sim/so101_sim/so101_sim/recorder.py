@@ -125,11 +125,12 @@ class Recorder:
     def num_episodes(self) -> int:
         return int(self.ds.meta.total_episodes)
 
-    def add(self, obs: Obs, action: np.ndarray) -> None:
+    def add(self, obs: Obs, action: np.ndarray, task: str | None = None) -> None:
+        """Add one frame. task overrides the recorder's instruction (it can change per episode)."""
         frame = {
             "observation.state": np.asarray(obs.state, dtype=np.float32),
             "action": np.asarray(action, dtype=np.float32),
-            "task": self.task,
+            "task": task or self.task,
         }
         for cam in self.cfg.cameras:
             frame[f"observation.images.{cam}"] = obs.images[cam]

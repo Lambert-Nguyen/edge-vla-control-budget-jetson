@@ -193,6 +193,9 @@ class EpisodeResult:
     inferences: int
     stall_steps: int
     staleness_ms: list[float] = field(default_factory=list, repr=False)
+    task: str = ""
+    wrong_object_in_box: bool = False   # another object ended up in the box
+    scene: dict = field(default_factory=dict)
 
     def summary(self) -> dict:
         st = np.asarray(self.staleness_ms) if self.staleness_ms else np.zeros(1)
@@ -297,7 +300,9 @@ def rollout(env: SO101Env, policy: ChunkPolicy, latency: LatencyModel, seed: int
             break
     return EpisodeResult(seed=seed, success=success_step is not None, steps=step,
                          time_to_success_s=None if success_step is None else success_step / env.cfg.fps,
-                         inferences=ex.inferences, stall_steps=ex.stalls, staleness_ms=ex.staleness_ms)
+                         inferences=ex.inferences, stall_steps=ex.stalls, staleness_ms=ex.staleness_ms,
+                         task=env.task, wrong_object_in_box=env.distractor_in_box(),
+                         scene={k: v for k, v in env.episode_info().items() if k not in ("task", "noise")})
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
@@ -339,7 +344,8 @@ def evaluate(policy_spec: str, cfg: SimConfig, episodes: int, latency: LatencyMo
             k = sum(x.success for x in results)
             log(f"episode {i + 1:3d}/{episodes}  seed {r.seed}  {'success' if r.success else 'fail   '}  "
                 f"{r.steps / cfg.fps:5.1f}s  inferences {r.inferences:3d}  stalls {r.stall_steps:4d}  "
-                f"running {k}/{i + 1}")
+                f"running {k}/{i + 1}" + ("  WRONG OBJECT IN BOX" if r.wrong_object_in_box else "")
+                + ("" if env.original_cube else f"  [{r.task}]"))
     finally:
         env.close()
     k = sum(r.success for r in results)
@@ -351,12 +357,15 @@ def evaluate(policy_spec: str, cfg: SimConfig, episodes: int, latency: LatencyMo
         "config": {"policy": policy_spec, "mode": mode, "threshold": threshold, "episodes": episodes,
                    "first_seed": seed, "randomize": cfg.randomize, "start_spread": cfg.start_spread, "fps": cfg.fps,
                    "episode_s": cfg.episode_s, "cameras": list(cfg.cameras),
+                   "camera1_pos": list(cfg.camera1_pos), "camera1_target": list(cfg.camera1_target),
+                   "objects": list(cfg.objects), "scene": cfg.scene, "noise": cfg.noise,
                    "n_action_steps": policy.n_action_steps, "num_steps": num_steps,
                    "latency": asdict(latency)},
         "success": {"k": k, "n": len(results), "rate": k / max(len(results), 1), "wilson95": [lo, hi]},
         "staleness_ms": {"mean": float(stale.mean()), "p50": float(np.percentile(stale, 50)),
                          "p95": float(np.percentile(stale, 95)), "max": float(stale.max())},
         "stall_fraction": float(sum(r.stall_steps for r in results) / max(sum(r.steps for r in results), 1)),
+        "wrong_object_in_box": int(sum(r.wrong_object_in_box for r in results)),
         "episodes": [r.summary() for r in results],
         "host": {"machine": platform.machine(), "system": platform.system(), "python": platform.python_version(),
                  "git_commit": git_commit(Path(__file__).resolve().parent)},

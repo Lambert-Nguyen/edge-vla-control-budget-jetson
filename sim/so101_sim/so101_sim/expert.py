@@ -22,6 +22,11 @@ from .units import GRIPPER_LO
 
 GRIP_OPEN = 0.65          # rad, about 65 mm between the jaws
 GRIP_CLOSED = GRIPPER_LO  # command fully closed; the cube stops the jaw
+CUBE_HALF_REF = 0.015     # m, the half width TCP_OFFSET was placed for (the 3 cm cube)
+EXTRA_CLEARANCE = 0.003   # m, more room past the fixed jaw for objects other than the original cube
+# Lowest tool point, the height the 3 cm cube is grasped at. Lower, the moving jaw's
+# tip hits the table as it swings shut and the gripper jams half open.
+MIN_GRASP_HEIGHT = 0.015
 
 
 def min_jerk(s: float) -> float:
@@ -56,12 +61,15 @@ class ScriptedExpert:
         cube, yaw = env.cube_pose()
         box = env.box_pos()
         jitter = lambda s: rng.uniform(-s, s, 3) * np.array([1, 1, 0])  # noqa: E731
+        obj = env.obj
         hover = rng.uniform(0.06, 0.09)
         carry = rng.uniform(0.09, 0.12)
-        release = env.box_height + env.cube_half + rng.uniform(0.012, 0.025)
+        release = env.box_height + obj.half_height + rng.uniform(0.012, 0.025)
 
         grasp = cube + jitter(0.002)
-        grasp[2] = cube[2]
+        # Low objects (a lying marker, a small ball) are grasped a little above their
+        # centre so the jaw tips stay clear of the table.
+        grasp[2] = cube[2] if env.original_cube else max(cube[2], MIN_GRASP_HEIGHT)
         above_cube = grasp + [0, 0, hover]
         above_box = box + jitter(0.01)
         above_box[2] = carry
@@ -70,9 +78,32 @@ class ScriptedExpert:
         lift = grasp.copy()
         lift[2] = carry
 
-        jaw_dir = np.array([math.cos(yaw), math.sin(yaw), 0.0])
+        # The jaws close along the object's jaw axis (a cube's face normal, a block's
+        # short side); round objects take any direction, so the wrist keeps its roll.
+        jaw_dir = None
+        if obj.jaw_axis is not None:
+            c, s = math.cos(yaw), math.sin(yaw)
+            ax, ay, _ = obj.jaw_axis
+            jaw_dir = np.array([c * ax - s * ay, s * ax + c * ay, 0.0])
         q_start = env.qpos_arm()
-        q_hover, err = self.ik.solve_topdown(q_start, above_cube, jaw_dir, roll_prefer=0.0)
+        q_hover, err = self.ik.solve_topdown(q_start, above_cube, jaw_dir, roll_prefer=0.0,
+                                             symmetric=max(obj.symmetry, 1))
+        # The tool point is placed so a 3 cm cube clears the fixed jaw by 4 mm (see
+        # TCP_OFFSET). A wider object would land on the fixed jaw and a narrower one be
+        # pushed further, so shift the grasp along the jaw axis by the difference.
+        # Objects other than the original cube get 3 mm more clearance (7 mm): with
+        # noise on, backlash and gain errors put the jaws a few mm off, and a fixed jaw
+        # landing on a ball sends it rolling away.
+        shift = CUBE_HALF_REF - obj.grip_half - (0.0 if env.original_cube else EXTRA_CLEARANCE)
+        if abs(shift) > 1e-9:
+            jaw_axis_world = self.ik.fk(q_hover)[1][:, 2]
+            jaw_axis_world = jaw_axis_world - jaw_axis_world[2] * np.array([0, 0, 1.0])
+            jaw_axis_world /= max(np.linalg.norm(jaw_axis_world), 1e-9)
+            grasp = grasp + shift * jaw_axis_world
+            above_cube = grasp + [0, 0, hover]
+            lift = grasp.copy()
+            lift[2] = carry
+            q_hover, err = self.ik.solve_topdown(q_hover, above_cube, None)
         if err > 1e-3:
             # Straight down at hover height needs more wrist_flex than the joint has
             # (far cubes), and solve_topdown's compromise misses the point by up to
@@ -133,7 +164,7 @@ class ScriptedExpert:
     def act(self) -> np.ndarray:
         """Next action in LeRobot units. Holds the last target once done."""
         if self.done:
-            return self.env.jmap.to_lerobot(self._q)
+            return self.env.action_for(self._q)
         seg = self.segments[self._seg]
         self._t += self.dt
         s = min_jerk(self._t / seg.duration)
@@ -151,7 +182,7 @@ class ScriptedExpert:
             self._t = 0.0
             self._start_segment(q)
             self._seg_start_grip = float(q[5])
-        return self.env.jmap.to_lerobot(q)
+        return self.env.action_for(q)
 
 
 def run_expert_episode(env: SO101Env, seed: int, render: bool = False, extra_s: float = 0.0):

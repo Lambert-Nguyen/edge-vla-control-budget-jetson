@@ -38,6 +38,47 @@ HOME_POSE = (0.0, -40.0, 20.0, 70.0, 0.0, 20.0)
 START_SPREAD = (30.0, 15.0, 20.0, 20.0, 30.0, 20.0)
 START_MIN_HEIGHT = 0.10      # m, jaws over the table
 
+# Camera1 positions (position, target), metres. "top" is the default since
+# 2026-11-20; "front" is what the first datasets used: 62 cm in front of the base
+# and 42 cm up, looking at the table 20 cm in front of it.
+CAMERA1_PRESETS = {
+    "top": ((0.50, 0.0, 0.70), (0.20, 0.0, 0.0)),
+    "front": ((0.62, 0.0, 0.42), (0.20, 0.0, 0.0)),
+}
+
+# Objects the task can use (see objects.py). "cube" alone is the original task.
+OBJECT_KINDS = ("cube", "block", "cylinder", "ball", "marker")
+
+# What is on the table. "single": one object. "colors": three objects of one kind
+# in different colours, and the instruction names the colour ("the red cube").
+# "kinds": three different kinds in one colour, and the instruction names the kind
+# ("the ball"). "mixed": one of the three, drawn per episode.
+SCENES = ("single", "colors", "kinds", "mixed")
+
+# Named noise scales: 0 is a perfect robot and camera, 1 our estimate of a real
+# SO-101 follower with USB cameras (see noise.py), 2 a stress test.
+NOISE_LEVELS = {"none": 0.0, "real": 1.0, "heavy": 2.0}
+
+
+def parse_noise(text: str | float) -> float:
+    """A noise scale from a level name or a number."""
+    if isinstance(text, (int, float)):
+        return float(text)
+    text = str(text).strip().lower()
+    if text in NOISE_LEVELS:
+        return NOISE_LEVELS[text]
+    value = float(text)
+    if value < 0:
+        raise ValueError(f"noise scale must be >= 0, got {value}")
+    return value
+
+
+def noise_label(scale: float) -> str:
+    for name, value in NOISE_LEVELS.items():
+        if abs(scale - value) < 1e-9:
+            return name
+    return f"{scale:g}"
+
 
 @dataclass(frozen=True)
 class TaskConfig:
@@ -67,13 +108,23 @@ class SimConfig:
     # --robot.max_relative_target (MAX_STEP in so101_lab.sh). None turns it off.
     max_step_deg: float | None = None
     # Where camera1 sits and what it looks at. Change these to match your stand.
-    camera1_pos: tuple[float, float, float] = (0.62, 0.0, 0.42)
+    # camera1 is a top view, as in lerobot/smolvla_base's training data: 70 cm up
+    # and 30 cm in front of the workspace, tilted 67 degrees down and back toward
+    # the arm, which is at the top of the image. Straight down, the raised arm
+    # covers the objects. Datasets before 2026-11-20 used the "front" preset.
+    camera1_pos: tuple[float, float, float] = (0.50, 0.0, 0.70)
     camera1_target: tuple[float, float, float] = (0.20, 0.0, 0.0)
     camera1_fovy: float = 52.0      # a Brio at 78 degrees diagonal, cropped to 4:3
     home_pose: tuple[float, ...] = HOME_POSE   # start pose, LeRobot units
     # Scale on START_SPREAD for the random start pose: 0 starts every episode at
     # home_pose. Randomize level "none" always starts at home_pose.
     start_spread: float = 1.0
+    # Which objects an episode may use; one is drawn per episode. ("cube",) is the
+    # original 3 cm cube at every randomize level.
+    objects: tuple[str, ...] = ("cube",)
+    scene: str = "single"            # see SCENES
+    # Sensor, actuation and camera noise scale (noise.py): 0 off, 1 a real arm.
+    noise: float = 0.0
     task: TaskConfig = field(default_factory=TaskConfig)
 
     def with_(self, **kw) -> "SimConfig":

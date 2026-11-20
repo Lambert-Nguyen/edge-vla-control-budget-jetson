@@ -180,14 +180,18 @@ class ArmIK:
         return best
 
     def solve_topdown(self, q_init: np.ndarray, target: np.ndarray, jaw_dir: np.ndarray | None,
-                      roll_prefer: float | None = None, iters: int = 3) -> tuple[np.ndarray, float]:
-        """Jaws pointing straight down at target; roll set from jaw_dir if given."""
+                      roll_prefer: float | None = None, iters: int = 3,
+                      symmetric: int = 4) -> tuple[np.ndarray, float]:
+        """Jaws pointing straight down at target; roll set from jaw_dir if given.
+
+        symmetric is how many jaw directions are equivalent (4 for a cube, 2 for a block).
+        """
         q = np.array(q_init, dtype=float)
         err = np.inf
         for _ in range(iters):
             q, err = self.solve(q, target, math.pi / 2)
             if jaw_dir is None:
                 break
-            q[ROLL] = self.roll_for_jaw_axis(q, jaw_dir, prefer=roll_prefer)
+            q[ROLL] = self.roll_for_jaw_axis(q, jaw_dir, symmetric=symmetric, prefer=roll_prefer)
         q, err = self.solve(q, target, math.pi / 2)
         return q, err
