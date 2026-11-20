@@ -211,7 +211,9 @@ class SO101Env:
         """Joint readings in LeRobot units, with encoder noise when noise is on."""
         if self.noise is None:
             return self.jmap.to_lerobot(self.qpos_arm())
-        return self.noise.quantize(self.jmap.to_lerobot(self.noise.reading(self.qpos_arm())))
+        reading = self.noise.quantize(self.jmap.to_lerobot(self.noise.reading(self.qpos_arm())))
+        # Same dtype as the clean path: MPS (Apple GPUs) has no float64 tensors.
+        return reading.astype(self.jmap.to_lerobot(self.home).dtype)
 
     def action_for(self, q: np.ndarray) -> np.ndarray:
         """The action (LeRobot units) that puts the arm at joint angles q (sim radians).

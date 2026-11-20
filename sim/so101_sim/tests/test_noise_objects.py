@@ -96,8 +96,9 @@ def test_noise_on_state_and_actuation():
     n = noisy.noise
     assert n is not None and np.abs(n.offset).max() > 0 and not np.allclose(n.kp_scale, 1)
     s = noisy.state()
+    assert s.dtype == clean.state().dtype      # float64 would break policies on MPS
     # arm joints sit on encoder ticks; readings differ from the truth by about the offset
-    assert np.allclose(np.round(s[:5] / QUANT_DEG) * QUANT_DEG, s[:5])
+    assert np.allclose(np.round(s[:5] / QUANT_DEG) * QUANT_DEG, s[:5], atol=1e-4)
     assert not np.allclose(s, clean.state(), atol=0.05)
     # the expert compensates the calibration offset, so it still succeeds
     assert all(play(noisy, seed) for seed in range(4))
