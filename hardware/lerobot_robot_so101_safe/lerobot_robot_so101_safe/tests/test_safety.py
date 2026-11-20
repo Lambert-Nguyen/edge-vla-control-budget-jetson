@@ -97,6 +97,34 @@ def test_step_cap():  # 4
     assert goal["elbow_flex"] == -3.0
 
 
+def test_step_cap_follows_last_goal():
+    # Under load the arm lags its goal. The speed cap counts from the last goal,
+    # so the goal keeps moving 3 degrees per step and the servo can push harder.
+    lim = soft_limits(CAL, cfg())
+    present = zeros() | {"elbow_flex": 4.0, "gripper": 50.0}
+    last = present | {"elbow_flex": 10.0}
+    goal, _ = filter_action(act(elbow_flex=30), present, lim, cfg(), last)
+    assert goal["elbow_flex"] == 13.0
+
+
+def test_follow_cap():
+    # A blocked arm: the goal never gets more than max_follow_deg ahead of it.
+    lim = soft_limits(CAL, cfg())
+    present = zeros() | {"elbow_flex": 5.0, "gripper": 50.0}
+    last = present | {"elbow_flex": 14.0}
+    goal, events = filter_action(act(elbow_flex=30), present, lim, cfg(), last)
+    assert goal["elbow_flex"] == 15.0 and ("clip_follow", "elbow_flex") in events
+
+
+def test_core_restarts_from_present_after_hold(make_robot):
+    r = ready(make_robot())
+    r.bus.present = zeros() | {"gripper": 50.0}
+    r.send_action(act(elbow_flex=30))           # goal 3, the fake arm follows
+    r.send_action(act(elbow_flex=float("nan")))  # hold at present
+    r.send_action(act(elbow_flex=30))
+    assert r.bus.writes[-1]["elbow_flex"] == pytest.approx(r.bus.writes[-2]["elbow_flex"] + 3.0)
+
+
 def test_limit_before_step():  # 5
     lim = soft_limits(CAL, cfg())
     present = zeros() | {"shoulder_pan": 95.0, "gripper": 50.0}

@@ -4,6 +4,8 @@ arm: team_follower               # calibration id
 control_hz: 30
 max_step_deg: 3.0               # about 90 deg/s at 30 Hz
 gripper_max_step: 5.0           # gripper uses 0-100 units
+max_follow_deg: 10.0            # goal at most this far ahead of the arm
+gripper_max_follow: 20.0
 soft_margin_deg: 5.0            # inside the calibrated range
 gripper_limits: [2, 98]
 watchdog_ms: 150                # hold is written before 200 ms (E-8)

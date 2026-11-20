@@ -32,6 +32,10 @@ class SafetyConfig:
     control_hz: float = 30.0
     max_step_deg: float = 3.0
     gripper_max_step: float = 5.0
+    # How far the goal may run ahead of the real position. The servo pushes in
+    # proportion to this gap, so it needs some room to lift against gravity.
+    max_follow_deg: float = 10.0
+    gripper_max_follow: float = 20.0
     soft_margin_deg: float = 5.0
     gripper_limits: tuple[float, float] = (2.0, 98.0)
     watchdog_ms: float = 150.0
@@ -100,11 +104,16 @@ def soft_limits(calibration: dict, cfg: SafetyConfig) -> dict[str, tuple[float, 
     return limits
 
 
-def filter_action(action: dict, present: dict, limits: dict, cfg: SafetyConfig):
+def filter_action(action: dict, present: dict, limits: dict, cfg: SafetyConfig, last_goal: dict | None = None):
     """Check one action. Returns (goal, events), or (None, events) for a bad action.
 
-    The order matters. The soft limit comes first, then the step cap, so a
-    clamp can never make a jump bigger than the step cap.
+    The order matters:
+    1. Soft limit.
+    2. Step cap, against the last goal sent (or the present position when there
+       is none). This limits the speed of the goal: 3 degrees per step.
+    3. Follow cap: the goal stays within max_follow_deg of the present position.
+       If the arm is blocked, the goal cannot run away from it.
+    A clamp in step 1 can never make a jump bigger than the step cap.
     """
     goal, events = {}, []
     for j in JOINTS:
@@ -119,10 +128,16 @@ def filter_action(action: dict, present: dict, limits: dict, cfg: SafetyConfig):
         if not lo <= v <= hi:
             v = min(max(v, lo), hi)
             events.append(("clip_limit", j))
-        cap = cfg.gripper_max_step if j == "gripper" else cfg.max_step_deg
-        if abs(v - present[j]) > cap:
-            v = present[j] + math.copysign(cap, v - present[j])
+        grip = j == "gripper"
+        cap = cfg.gripper_max_step if grip else cfg.max_step_deg
+        ref = present[j] if last_goal is None else last_goal[j]
+        if abs(v - ref) > cap:
+            v = ref + math.copysign(cap, v - ref)
             events.append(("clip_step", j))
+        follow = cfg.gripper_max_follow if grip else cfg.max_follow_deg
+        if abs(v - present[j]) > follow:
+            v = present[j] + math.copysign(follow, v - present[j])
+            events.append(("clip_follow", j))
         goal[j] = v
     return goal, events
 
@@ -151,6 +166,7 @@ class Counters:
     steps: int = 0
     clip_limit: dict = field(default_factory=lambda: {j: 0 for j in JOINTS})
     clip_step: dict = field(default_factory=lambda: {j: 0 for j in JOINTS})
+    clip_follow: dict = field(default_factory=lambda: {j: 0 for j in JOINTS})
     bad_actions: int = 0
     holds_watchdog: int = 0
     holds_bad: int = 0
@@ -179,6 +195,7 @@ class SafetyCore:
         self.last_action_t: float | None = None
         self.bad_in_row = 0
         self.bus_fail_in_row = 0
+        self.last_goal: dict | None = None  # the last Goal_Position written
 
     def log(self, event: str, **kw) -> None:
         self.events.append({"t": round(self.clock(), 4), "event": event, **kw})
@@ -215,8 +232,11 @@ class SafetyCore:
         if self.state in (State.STOP, State.PARK, State.CHECK):
             return None
 
-        goal, events = filter_action(action, present, self.limits, self.cfg)
+        # After a hold the arm should start again from where it stands.
+        last = self.last_goal if self.state is State.RUN else None
+        goal, events = filter_action(action, present, self.limits, self.cfg, last)
         if goal is None:
+            self.last_goal = dict(present)  # the caller writes a hold at present
             self.counters.bad_actions += 1
             self.bad_in_row += 1
             joint = events[0][1]
@@ -235,6 +255,7 @@ class SafetyCore:
             getattr(self.counters, kind)[j] += 1
             want = action.get(f"{j}.pos")
             self.log(kind, joint=j, want=round(float(want), 2), sent=round(goal[j], 2))
+        self.last_goal = dict(goal)
         return goal
 
     def watchdog_due(self) -> bool:
@@ -243,7 +264,9 @@ class SafetyCore:
             return False
         return (self.clock() - self.last_action_t) * 1e3 >= self.cfg.watchdog_ms
 
-    def on_watchdog_hold(self) -> None:
+    def on_watchdog_hold(self, present: dict | None = None) -> None:
+        if present is not None:
+            self.last_goal = dict(present)
         gap = (self.clock() - self.last_action_t) * 1e3
         self._hold("watchdog", gap_ms=round(gap, 1))
 

@@ -137,6 +137,7 @@ class SafeFollower(SOFollower):
             if before is State.RUN and self.core.state in (State.HOLD, State.STOP):
                 # A bad action, a health fault or a bus fault: hold the arm where it is.
                 self._write_goal(present)
+                self.core.last_goal = dict(present)
                 goal = None
             sent = goal if goal is not None else present
         self._flush_events()
@@ -171,7 +172,7 @@ class SafeFollower(SOFollower):
             present = self._read_present()
             if present is not None:
                 self._write_goal(present)
-            self.core.on_watchdog_hold()
+            self.core.on_watchdog_hold(present)
         self._flush_events()
         return True
 
@@ -185,7 +186,7 @@ class SafeFollower(SOFollower):
             if self._log_file:
                 self._log_file.write(json.dumps(e) + "\n")
             kind = e["event"]
-            if kind in ("clip_limit", "clip_step", "hold", "bad_action", "stop", "temp_warn"):
+            if kind in ("clip_limit", "clip_step", "clip_follow", "hold", "bad_action", "stop", "temp_warn"):
                 now = time.monotonic()
                 if now - self._last_print.get(kind, -1e9) >= 1.0:  # at most once a second per type
                     self._last_print[kind] = now
