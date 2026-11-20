@@ -1,0 +1,148 @@
+{
+  "kind": "smolvla_live_loop",
+  "timestamp": "2026-11-20T06:40:36.342345+00:00",
+  "config": {
+    "mode": "sync",
+    "policy": "lerobot/smolvla_base",
+    "cam1": "/dev/v4l/by-id/usb-046d_Logitech_BRIO_72580AD9-video-index0",
+    "cam2": "/dev/v4l/by-id/usb-Generic_USB_HD_Camera_200910120001-video-index0",
+    "cam1_fps": 60,
+    "cam2_fps": 30,
+    "width": 640,
+    "height": 480,
+    "hz": 30.0,
+    "seconds": 30.0,
+    "steps": 5,
+    "trigger": null,
+    "follower_port": null,
+    "follower_id": "team_follower",
+    "task": "Pick up the cube and put it in the box.",
+    "no_power": false,
+    "json": "results/20261119-223923_maxn-scaling-live-sync-5step.json"
+  },
+  "policy": {
+    "path": "lerobot/smolvla_base",
+    "num_steps": 5,
+    "n_action_steps": 50,
+    "image_keys": [
+      "observation.images.camera1",
+      "observation.images.camera2"
+    ]
+  },
+  "trigger": null,
+  "loop_rate_hz": 21.0733710301317,
+  "latency": {
+    "step_work": {
+      "n": 900,
+      "mean_ms": 38.597220873333654,
+      "stdev_ms": 100.09913068297928,
+      "min_ms": 14.652553999894735,
+      "p50_ms": 24.48084099978587,
+      "p90_ms": 27.992638000341685,
+      "p99_ms": 740.7349779996366,
+      "max_ms": 782.9561970002032
+    },
+    "step_period": {
+      "n": 899,
+      "mean_ms": 47.45325266518361,
+      "stdev_ms": 98.85171542382037,
+      "min_ms": 32.9766350000682,
+      "p50_ms": 33.33378399975118,
+      "p90_ms": 33.425395999984175,
+      "p99_ms": 745.2048770001056,
+      "max_ms": 783.0082610003046
+    },
+    "chunk": {
+      "n": 18,
+      "mean_ms": 738.0800081111324,
+      "stdev_ms": 28.96966014864725,
+      "min_ms": 645.6804620002004,
+      "p50_ms": 740.432262000013,
+      "p90_ms": 772.2980530002133,
+      "p99_ms": 782.6437220001026,
+      "max_ms": 782.6437220001026
+    },
+    "observation": {
+      "n": 900,
+      "mean_ms": 0.10919038666947421,
+      "stdev_ms": 0.019841366959615494,
+      "min_ms": 0.061311999616009416,
+      "p50_ms": 0.10671800009731669,
+      "p90_ms": 0.125023000236979,
+      "p99_ms": 0.1830689998314483,
+      "max_ms": 0.29013999983362737
+    }
+  },
+  "late_steps": 18,
+  "longest_stall_ms": 783.0082610003046,
+  "queue_gaps": null,
+  "longest_gap_steps": null,
+  "dropped_actions": null,
+  "power": {
+    "source": "ina3221 sysfs",
+    "interval_ms": 50.0,
+    "n_samples": 854,
+    "duration_s": 42.652154238000094,
+    "rail_voltage_mv": {
+      "VDD_IN": 5000,
+      "VDD_CPU_GPU_CV": 4984,
+      "VDD_SOC": 4992
+    },
+    "rails": {
+      "VDD_IN": {
+        "mean_w": 6.483466042154567,
+        "peak_w": 9.72
+      },
+      "VDD_CPU_GPU_CV": {
+        "mean_w": 1.5956270163934427,
+        "peak_w": 4.106816
+      },
+      "VDD_SOC": {
+        "mean_w": 1.6842329929742388,
+        "peak_w": 1.9968
+      }
+    },
+    "gpu_freq_mhz": {
+      "min": 306.0,
+      "max": 1020.0
+    },
+    "tj_temp_c": {
+      "start": 52.406,
+      "max": 53.156
+    }
+  },
+  "finite": true,
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": null,
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 306000000,
+        "max_hz": 1020000000,
+        "cur_hz": 306000000,
+        "pinned": false
+      },
+      "cpu0": {
+        "min_khz": 729600,
+        "max_khz": 1728000,
+        "cur_khz": 1190400,
+        "pinned": false,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": false
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "4f1ef9a5a82c07bd512dea2bfa1d6cbf9eb3c6fa",
+    "branch": "feat/live-loop-timing",
+    "dirty": false
+  }
+}
