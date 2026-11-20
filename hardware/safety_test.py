@@ -26,6 +26,11 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+# The script folder (hardware/) is first on sys.path. There, the folder
+# lerobot_robot_so101_safe/ is the project folder with pyproject.toml, not the
+# package, and it would hide the installed package. Put the package folder first.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lerobot_robot_so101_safe"))
+
 HZ = 30.0
 
 
