@@ -22,10 +22,12 @@ park_step_deg: 2.0
 # Backward there is no table, but a straight arm near -100 is too heavy for the
 # shoulder servo to lift again (bench case B-1, Nov 20). Our tasks are in front,
 # so the arm stays within -45 behind. PARK and the rest pose ignore these limits.
-# Folding forward from the upright pose, the elbow stopped at about +79 in
-# bench case B-1 (Nov 20): the forearm hangs almost straight down beside the
-# upper arm there. Only the rest pose (+93) folds further, and PARK ignores it.
-limit_overrides: {shoulder_lift: [-45.0, 38.0], elbow_flex: [null, 75.0]}
+# Folding forward from the upright pose, the gripper hits the table at about
+# elbow_flex +70 (bench case B-1, Nov 20). +60 keeps it about 3 cm above. Only
+# the rest pose (+93) folds further, and PARK ignores these limits.
+# These limits hold for one joint at a time. Shoulder and elbow together can
+# still reach the table, so a gripper height check is needed before policy runs.
+limit_overrides: {shoulder_lift: [-45.0, 38.0], elbow_flex: [null, 60.0]}
 # Whole arm straight up, measured with the live reader on Nov 20. A straight
 # elbow is about -84 on this arm, and 0 is the L shape.
 upright_pose_deg: {shoulder_pan: -8.7, shoulder_lift: 2.1, elbow_flex: -83.9, wrist_flex: 4.3, wrist_roll: -1.0}
