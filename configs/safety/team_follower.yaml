@@ -35,8 +35,9 @@ upright_pose_deg: {shoulder_pan: -8.7, shoulder_lift: 2.1, elbow_flex: -83.9, wr
 # keeps the lowest gripper point table_margin_m above the table for the whole arm.
 # table_z_m and model_offsets_deg come from hardware/table_calibration.py.
 # Until they are set, the safe follower refuses to start.
+# Table calibration (2026-11-20, hardware/table_calibration.py).
 height_check: true
-table_z_m: null
+table_z_m: 0.0035
 table_margin_m: 0.01
-model_offsets_deg: null
+model_offsets_deg: {shoulder_lift: -10.30, elbow_flex: 0.92, wrist_flex: -6.44}
 rest_pose_deg: {shoulder_pan: -10.7, shoulder_lift: -103.8, elbow_flex: 93.1, wrist_flex: 71.3, wrist_roll: -4.2, gripper: 0.9}
