@@ -31,4 +31,12 @@ limit_overrides: {shoulder_lift: [-45.0, 38.0], elbow_flex: [null, 60.0]}
 # Whole arm straight up, measured with the live reader on Nov 20. A straight
 # elbow is about -84 on this arm, and 0 is the L shape.
 upright_pose_deg: {shoulder_pan: -8.7, shoulder_lift: 2.1, elbow_flex: -83.9, wrist_flex: 4.3, wrist_roll: -1.0}
+# Gripper height check (S-11). Joint limits hold one joint at a time, so this
+# keeps the lowest gripper point table_margin_m above the table for the whole arm.
+# table_z_m and model_offsets_deg come from hardware/table_calibration.py.
+# Until they are set, the safe follower refuses to start.
+height_check: true
+table_z_m: null
+table_margin_m: 0.01
+model_offsets_deg: null
 rest_pose_deg: {shoulder_pan: -10.7, shoulder_lift: -103.8, elbow_flex: 93.1, wrist_flex: 71.3, wrist_roll: -4.2, gripper: 0.9}

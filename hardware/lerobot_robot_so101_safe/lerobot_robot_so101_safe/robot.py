@@ -65,6 +65,9 @@ class SafeFollower(SOFollower):
             raise SafetyCheckError(f"rest pose has no value for {sorted(missing)}")
         if not self.calibration:
             raise SafetyCheckError(f"no calibration file {self.calibration_fpath}")
+        if self.safety.height_check and (self.safety.table_z_m is None or self.safety.model_offsets_deg is None):
+            raise SafetyCheckError("the height check is on, but the table is not calibrated. "
+                                   "Run hardware/table_calibration.py first")
         with self.bus_lock:
             found = self.bus.broadcast_ping(num_retry=2) or {}
             answer = [m for m in JOINTS if self.bus.motors[m].id in found]
@@ -186,7 +189,7 @@ class SafeFollower(SOFollower):
             if self._log_file:
                 self._log_file.write(json.dumps(e) + "\n")
             kind = e["event"]
-            if kind in ("clip_limit", "clip_step", "clip_follow", "hold", "bad_action", "stop", "temp_warn"):
+            if kind in ("clip_limit", "clip_step", "clip_follow", "clip_height", "hold", "bad_action", "stop", "temp_warn"):
                 now = time.monotonic()
                 if now - self._last_print.get(kind, -1e9) >= 1.0:  # at most once a second per type
                     self._last_print[kind] = now
