@@ -1,0 +1,91 @@
+{
+  "kind": "hyvla_robotwin_baseline",
+  "timestamp": "2026-11-20T11:02:36.917532+00:00",
+  "config": {
+    "tasks_file": "/home/james-4090/edge-vla/configs/robotwin_tasks.yaml",
+    "robotwin_commit": "13c3c47",
+    "embodiment": "aloha-agilex",
+    "task_config": "demo_clean",
+    "instruction_type": "unseen",
+    "eval_seed": 10000,
+    "episodes_per_task": 100,
+    "tasks": [
+      "adjust_bottle",
+      "beat_block_hammer",
+      "click_bell",
+      "place_a2b_left",
+      "stack_blocks_two"
+    ],
+    "reserve": "move_can_pot",
+    "calibration": {
+      "task_config": "demo_clean",
+      "demos_per_task": 50,
+      "first_seed": 0
+    },
+    "ckpt": "/home/james-4090/hyvla/ckpt/Hy-Embodied-0.5-VLA-RoboTwin",
+    "robotwin": "/home/james-4090/robotwin/RoboTwin-0726",
+    "precision": "bfloat16 (released checkpoint, PyTorch)"
+  },
+  "tasks": {
+    "adjust_bottle": {
+      "success": 99,
+      "episodes": 100,
+      "rate": 0.99,
+      "wilson_low": 0.9455124752390653,
+      "wilson_high": 0.9982326134344526,
+      "returncode": 0,
+      "minutes": 31.2622859954834
+    },
+    "beat_block_hammer": {
+      "success": 97,
+      "episodes": 100,
+      "rate": 0.97,
+      "wilson_low": 0.915479219195973,
+      "wilson_high": 0.9897456617765851,
+      "returncode": 0,
+      "minutes": 26.34136258761088
+    },
+    "click_bell": {
+      "success": 100,
+      "episodes": 100,
+      "rate": 1.0,
+      "wilson_low": 0.9630051925239981,
+      "wilson_high": 0.9999999999999999,
+      "returncode": 0,
+      "minutes": 13.457469463348389
+    },
+    "place_a2b_left": {
+      "success": 79,
+      "episodes": 100,
+      "rate": 0.79,
+      "wilson_low": 0.7001985069803768,
+      "wilson_high": 0.8583445046835422,
+      "returncode": 0,
+      "minutes": 56.76887259085973
+    },
+    "stack_blocks_two": {
+      "success": 98,
+      "episodes": 100,
+      "rate": 0.98,
+      "wilson_low": 0.9299868370580063,
+      "wilson_high": 0.9944981477650318,
+      "returncode": 0,
+      "minutes": 54.461717176437375
+    }
+  },
+  "total": {
+    "success": 473,
+    "episodes": 500,
+    "rate": 0.946,
+    "wilson": [
+      0.9225729387555679,
+      0.9626259015148662
+    ]
+  },
+  "episodes_file": "20261120-000019_rtx4090-hyvla-robotwin-bf16-baseline.episodes.jsonl",
+  "git": {
+    "commit": "7a753ccba8aaaece5871b1d27dc6a356d1593859",
+    "branch": "feat/hyvla-robotwin-baseline",
+    "dirty": false
+  }
+}
