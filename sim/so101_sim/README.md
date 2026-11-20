@@ -170,6 +170,33 @@ threshold 0.5, the queue runs dry 58% of the time and async drops to 10/12,
 while sync stays at 12/12 but takes 30% longer. Raising `--threshold` above
 latency ÷ chunk duration (here 1.13 s ÷ 1.67 s ≈ 0.68) is the obvious knob.
 
+## Shared datasets
+
+Datasets and checkpoints are too big for git (several files are over GitHub's
+100 MB limit), so they live on Hugging Face. Each entry names the commit of this
+repo that generated it; check that commit out to regenerate it exactly.
+
+| Dataset | Made with | Contents |
+| --- | --- | --- |
+| [`duylam1407/so101_sim_cube_box`](https://huggingface.co/datasets/duylam1407/so101_sim_cube_box) (private) | commit `6e41556`, `python -m so101_sim generate --name sim_cube_box --episodes 200 --randomize full` | 200 expert episodes, 55,067 frames, 30 fps, seeds 0–199, default start spread; 200/200 expert successes; 662 MB. Hub revision `d926fb5`, tag `v3.0` |
+
+`lerobot-train` downloads a dataset by its id, so no copying is needed. Log in
+once with `hf auth login` using an account that can read the repo, then:
+
+```bash
+lerobot-train --policy.path=lerobot/smolvla_base \
+  --dataset.repo_id=duylam1407/so101_sim_cube_box \
+  --policy.device=cuda --policy.push_to_hub=false \
+  --batch_size=64 --steps=20000 --output_dir=outputs/train/smolvla_sim
+```
+
+Training runs on it so far:
+
+| Run | Where | Settings | Status |
+| --- | --- | --- | --- |
+| `act_sim` | M1 Pro laptop, MPS | ACT, `chunk_size` and `n_action_steps` 50, batch 8, 20k steps, `--dataset.video_backend=pyav` | in progress, about 1 s/step |
+| `smolvla_sim` | RTX 4090 | the command above | not started |
+
 ## Matching the real arm
 
 **Units.** LeRobot 0.4.4 and 0.5.1 both default the SO-101 to `use_degrees=True`:
