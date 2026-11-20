@@ -59,8 +59,9 @@
 #     is unplugged, so set them again after a replug. This needs v4l-utils
 #     (sudo apt install v4l-utils). Turn the automatic modes off first, then set values:
 #       v4l2-ctl -d "$CAM1" -c focus_automatic_continuous=0 -c auto_exposure=1 -c white_balance_automatic=0
-#       v4l2-ctl -d "$CAM1" -c focus_absolute=30 -c exposure_time_absolute=150 -c white_balance_temperature=4000
-#     These are start values. Adjust them while `preview` runs, and keep exposure_time_absolute
+#       v4l2-ctl -d "$CAM1" -c focus_absolute=30 -c exposure_time_absolute=160 -c gain=80 -c white_balance_temperature=6000
+#     These are the values for our desk lamp setup (Nov 20). With 4000 K and no gain the
+#     picture was dark and blue. Use more gain, not more exposure, to make it brighter. Adjust them while `preview` runs, and keep exposure_time_absolute
 #     at 166 or less (in 100 us units, so 16.6 ms), or the camera cannot reach 60 fps.
 #     `v4l2-ctl -d "$CAM1" -L` lists every control with its range.
 
