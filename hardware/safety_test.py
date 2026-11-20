@@ -34,7 +34,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lerobot_robot_so101_sa
 HZ = 30.0
 
 
+CASES: set[str] = set()
+
+
 def ask(msg: str) -> bool:
+    case = msg.split(":")[0]
+    if case.startswith("B-") and case not in CASES:
+        return False
     try:
         return input(f"\n{msg} [Enter = run, s = skip] ").strip().lower() != "s"
     except EOFError:
@@ -60,6 +66,26 @@ def drive(robot, goal: dict, steps: int, log=None) -> None:
         time.sleep(max(0.0, 1 / HZ - (time.perf_counter() - t)))
 
 
+def drive_until(robot, goal: dict, joint: str, target: float, max_s: float = 15.0) -> list[dict]:
+    """Send the same goal at 30 Hz until `joint` is within 0.5 degree of `target`,
+    or has not moved for 1 s (it reached a clamp, or something blocks it), or max_s."""
+    log, still, last = [], 0, None
+    end = time.perf_counter() + max_s
+    while time.perf_counter() < end:
+        t = time.perf_counter()
+        robot.send_action(pos_action(goal))
+        p = present(robot)
+        log.append(p)
+        if abs(p[joint] - target) < 0.5:
+            break
+        still = still + 1 if last is not None and abs(p[joint] - last) < 0.1 else 0
+        last = p[joint]
+        if still >= 30:
+            break
+        time.sleep(max(0.0, 1 / HZ - (time.perf_counter() - t)))
+    return log
+
+
 def watch(robot, seconds: float) -> list[dict]:
     out = []
     end = time.perf_counter() + seconds
@@ -79,7 +105,10 @@ def main() -> int:
     ap.add_argument("--id", required=True)
     ap.add_argument("--config", required=True, help="this arm's safety config")
     ap.add_argument("--wrong-config", help="another arm's config, for B-7")
+    ap.add_argument("--cases", default="B-1,B-2,B-3,B-4,B-5,B-6,B-7,B-8",
+                    help="cases to run, e.g. --cases B-1 (B-6 parks the arm at the end in any case)")
     args = ap.parse_args()
+    CASES.update(c.strip() for c in args.cases.split(","))
 
     from lerobot_robot_so101_safe import SafeFollower, SafeFollowerConfig, SafetyCheckError
     from lerobot_robot_so101_safe.rules import JOINTS, State
@@ -117,7 +146,10 @@ def main() -> int:
     home = present(robot)
     try:
         if ask("B-1: each joint gets a goal 30 degrees past its soft limit, then goes back."):
-            worst = {}
+            # For each side: the joint must get to its soft limit (within 2 degrees)
+            # and never go more than 1 degree past it. A joint that stops short
+            # (blocked, or too slow) fails, so B-1 cannot pass without testing.
+            worst, short = {}, {}
             for j in JOINTS:
                 if j == "wrist_roll":
                     continue  # full turn joint, its limit is not a collision limit
@@ -125,12 +157,17 @@ def main() -> int:
                     edge = lim[j][side]
                     goal = dict(home)
                     goal[j] = edge + (30 if side else -30) * (0.5 if j == "gripper" else 1)
-                    log: list[dict] = []
-                    drive(robot, goal, steps=int(abs(goal[j] - home[j]) / 2) + 30, log=log)
+                    log = drive_until(robot, goal, j, edge)
                     past = max((s[j] - edge) if side else (edge - s[j]) for s in log)
-                    worst[f"{j}.{'hi' if side else 'lo'}"] = round(past, 2)
-                    drive(robot, home, steps=int(abs(edge - home[j]) / 2) + 30)
-            record("B-1", max(worst.values()) <= 1.0, past_limit_deg=worst)
+                    tag = f"{j}.{'hi' if side else 'lo'}"
+                    worst[tag] = round(past, 2)
+                    if past < -2.0:
+                        short[tag] = round(-past, 1)
+                    drive_until(robot, home, j, home[j])
+            if short:
+                print(f"  B-1: these did not reach their limit (degrees short): {short}. "
+                      "Check that nothing blocks them, then run B-1 again.")
+            record("B-1", max(worst.values()) <= 1.0 and not short, past_limit_deg=worst, short_deg=short)
 
         if ask("B-2: elbow_flex jumps 45 degrees."):
             start = present(robot)
@@ -197,7 +234,11 @@ def main() -> int:
                                    "counters": robot.core.counters.as_dict()}, indent=2) + "\n")
         print(f"\nwrote {out}")
         failed = [c for c, r in results.items() if not r["pass"]]
-        print("E-8 bench test:", "PASS" if not failed and len(results) >= 8 else f"not passed ({failed or 'skipped cases'})")
+        if len(CASES) < 8:
+            print(f"Cases run {sorted(results)}:", "PASS" if not failed else f"FAIL {failed}",
+                  "(E-8 needs all 8 cases, from this run and earlier ones)")
+        else:
+            print("E-8 bench test:", "PASS" if not failed and len(results) >= 8 else f"not passed ({failed or 'skipped cases'})")
     return 0
 
 
