@@ -176,11 +176,18 @@ LeRobot datasets with the same features as `hardware/so101_lab.sh`, and `eval`
 writes success records to `results/` with chunk latency taken from a harness
 record. See [sim/so101_sim/README.md](sim/so101_sim/README.md).
 
-A 200-episode expert dataset made with it is public on Hugging Face as
-[`duylam1407/so101_sim_cube_box`](https://huggingface.co/datasets/duylam1407/so101_sim_cube_box),
-so `lerobot-train --dataset.repo_id=duylam1407/so101_sim_cube_box` trains on it
-without generating it again. Which commit made it, and the training runs on it,
-are under
+Two expert datasets made with it are public on Hugging Face, so
+`lerobot-train --dataset.repo_id=<id>` trains on them without generating them
+again:
+
+- [`duylam1407/so101_sim_multi_object_noisy`](https://huggingface.co/datasets/duylam1407/so101_sim_multi_object_noisy):
+  300 episodes, five kinds of object, scenes where the instruction picks one
+  object out of three by colour or by kind, real-arm noise, overhead camera.
+  Use this one for new policies.
+- [`duylam1407/so101_sim_cube_box`](https://huggingface.co/datasets/duylam1407/so101_sim_cube_box):
+  200 episodes, one cube, no noise, front camera. The first runs used it.
+
+Which commit made each, and the training runs on them, are under
 [Shared datasets](sim/so101_sim/README.md#shared-datasets).
 
 **RoboTwin 2.0.**
@@ -266,25 +273,28 @@ made them records the repo id and the commit, as
   our own pair is pending. `hardware/so101_lab.sh` is ready for recording demos
   and running policies.
 - **Simulation.** The SO-101 simulator is built and tested on Windows, macOS
-  and Linux. A 200-episode expert dataset is
-  [on Hugging Face](https://huggingface.co/datasets/duylam1407/so101_sim_cube_box).
-  An ACT policy is training on it as an end-to-end check, and SmolVLA is next,
-  on the RTX 4090. No simulated success rate is recorded yet.
+  and Linux. It now has five kinds of object, multi-object scenes where the
+  instruction names a colour or a kind, real-arm sensor, actuation and camera
+  noise, and an overhead camera1. Two expert datasets are on Hugging Face (see
+  [Setup](#setup)). An ACT policy trained on the first one as an end-to-end
+  check succeeds in 6/20 episodes without noise, 5/20 at real noise and 2/20 at
+  twice that (records in `results/`); it is undertrained, so these check the
+  pipeline rather than measure the policy. SmolVLA is next, on the RTX 4090.
 
 ### Next steps
 
 In order; each says what it needs and what it produces.
 
 1. **Train SmolVLA on the sim dataset** (RTX 4090). Run the command under
-   [Shared datasets](sim/so101_sim/README.md#shared-datasets); it downloads the
-   data by id. Upload `checkpoints/last/pretrained_model` to Hugging Face as a
+   [Shared datasets](sim/so101_sim/README.md#shared-datasets), on
+   `so101_sim_multi_object_noisy`; it downloads the data by id. Upload `checkpoints/last/pretrained_model` to Hugging Face as a
    model repo and add it to that section with the commit it was trained at.
-2. **Evaluate ACT across latencies** (any laptop, once `act_sim` finishes).
-   `python -m so101_sim eval` with `--latency-ms 0,250,500,750,1000,1250`, sync
-   and async, 50 episodes each. This checks the train-to-eval pipeline and
-   gives the first records in `results/`.
-3. **Evaluate SmolVLA at the Jetson's latency.** The same sweep, plus one run
-   with `--latency-from` the pinned SmolVLA record in `results/`. This is the
+2. **Evaluate ACT across latencies** (any laptop). `python -m so101_sim eval`
+   on `act_sim` with `--camera1 front --latency-ms 0,250,500,750,1000,1250`,
+   sync and async, 50 episodes each. Its zero-latency noise runs are done.
+3. **Evaluate SmolVLA at the Jetson's latency.** The same sweep with
+   `--objects all --scene mixed --noise none,real`, plus one run with
+   `--latency-from` the pinned SmolVLA record in `results/`. This is the
    first success-versus-latency curve for the report.
 4. **First session on our own arm** (whoever has the follower). Things only the
    arm can settle, all listed in
@@ -293,15 +303,17 @@ In order; each says what it needs and what it produces.
    - put the follower in a few poses and compare its readings with the
      simulator's joint readout; write a joint map if any joint is mirrored or
      offset;
-   - measure the front camera stand (position and the point it looks at, in
+   - measure the overhead camera (position and the point it looks at, in
      metres from the arm base) for `--camera1-pos` and `--camera1-target`;
+   - check the noise estimates: backlash (reverse a joint by small steps) and
+     camera delay (film a moving joint against its readings);
    - record a few joint trajectories so the simulator's servo gains can be
      fitted to our servos;
    - try the simulator's *Real follower* mirror once, slowly.
-5. **Language grounding in the simulator.** Several cube colours and target
-   places, with instructions that name them, so the instruction changes what
-   the arm should do. Needs a change to the scene, the expert and
-   randomization in `sim/so101_sim/`.
+5. **More language grounding in the simulator.** Picking by colour and by kind
+   is done. Next: target places (several boxes, or "left of"), so the
+   instruction also changes where the object goes. Needs a change to the
+   scene, the expert and randomization in `sim/so101_sim/`.
 
 See the [2026-09-29 advisor update](docs/reports/2026-09-29-advisor-update.md)
 for the earlier state.

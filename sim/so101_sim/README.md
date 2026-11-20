@@ -7,9 +7,12 @@ jobs:
 1. **Collect training data.** A scripted expert, keyboard teleop, or the real
    SO-101 leader arm on USB records demonstrations as LeRobot datasets with the
    same features as `hardware/so101_lab.sh`: `observation.state` and `action` with
-   the six `<joint>.pos` names, `observation.images.camera1` (front) and
+   the six `<joint>.pos` names, `observation.images.camera1` (top) and
    `camera2` (wrist) at 640×480, 30 fps, robot type `so101_follower`.
-   `lerobot-train` reads them like a real dataset.
+   `lerobot-train` reads them like a real dataset. Five kinds of object, scenes
+   where the instruction picks one of three, and the noise of a real arm and real
+   cameras are options; see [Objects and scenes](#objects-and-scenes) and
+   [Real-world noise](#real-world-noise).
 2. **Measure task success without the arm.** `eval` runs any LeRobot checkpoint
    (SmolVLA, π0/π0.5, ACT) in closed loop over fixed, seeded layouts and writes a
    JSON record with a Wilson 95% interval.
@@ -106,6 +109,10 @@ a row; tick *as fast as possible* to skip real-time pacing. Datasets go to
 
 ```bash
 python -m so101_sim generate --name sim_cube_box --episodes 200 --randomize full
+
+# every object, all three scenes, with the noise of the real rig
+python -m so101_sim generate --name sim_multi_object_noisy --episodes 300 --randomize full \
+  --objects all --scene mixed --noise real
 ```
 
 Layout seeds start at 0 and each episode's seed and start pose are logged in
@@ -170,6 +177,76 @@ threshold 0.5, the queue runs dry 58% of the time and async drops to 10/12,
 while sync stays at 12/12 but takes 30% longer. Raising `--threshold` above
 latency ÷ chunk duration (here 1.13 s ÷ 1.67 s ≈ 0.68) is the obvious knob.
 
+## Objects and scenes
+
+`--objects` chooses what to pick up, one drawn per episode: `cube` (the default),
+`block`, `cylinder`, `ball`, `marker`, a comma list, or `all`. At `light` and
+`full` each has a random size. The instruction names it: *"Pick up the ball and
+put it in the box."*
+
+| Object | Shape | Size | Grasped |
+| --- | --- | --- | --- |
+| cube | box | 2.4–3.6 cm sides | across two faces |
+| block | box lying flat | 4.4–6 cm long, 2.4–3 cm wide and high | across the short side |
+| cylinder | standing up | 2.4–3.4 cm across, 3.6–6 cm tall | any direction |
+| ball | sphere | 2.8–3.6 cm across | any direction |
+| marker | capsule lying flat | 2–2.6 cm across, 7.2–9.4 cm long | across the body |
+
+Mass comes from the volume at 1100 kg/m³, so the 3 cm cube weighs 30 g as before.
+Long objects lie within 45° of across the arm's reach: pointing straight at the
+arm near its base, the grasp needs the wrist rolled 90°, and the wrist camera
+mount then hits the shoulder.
+
+`--scene` puts more than one object on the table, so the policy has to read the
+instruction:
+
+| Scene | On the table | Instruction |
+| --- | --- | --- |
+| `single` (default) | one object | *"Pick up the cylinder…"* |
+| `colors` | three of one kind, each a different colour | *"Pick up the red cube…"* |
+| `kinds` | three different kinds, all one colour | *"Pick up the ball…"* |
+| `mixed` | one of the three above, drawn per episode | either |
+
+Colours are red, green, blue, yellow, purple and white. The other objects stand
+at least 3.5 cm apart (beyond their size) so the open jaws come down clear of
+them; when three long markers do not fit, one is left out (10 in 60 `colors`
+episodes). `eval` records count episodes where a wrong object ended up in the
+box.
+
+The scripted expert succeeded on every episode checked: 40 per object at `full`
+without noise and at `real` noise, and 60 per scene at `full`, with and without
+noise. At `heavy` noise the ball drops to 36 of 40.
+
+## Real-world noise
+
+`--noise` adds what a real SO-101 and its USB cameras do to a perfect simulator:
+`none` (the default), `real` (our estimate of the lab rig), `heavy` (twice
+that), or any scale. Each episode draws its own errors from its seed, so a seed
+gives the same layout at any noise and the same noise at the same scale.
+
+| | At `real` |
+| --- | --- |
+| Joint readings | STS3215 encoder ticks (0.088°) plus 0.15° noise; gripper 0.3 units |
+| Calibration | each joint's zero off by up to 2° (gripper 2 units): the arm moves to command + offset and reports position − offset |
+| Backlash | 0.8° of play in each arm joint's gears |
+| Servo gains | each joint's position gain off by up to 15% |
+| Command jitter | 0.1° per step |
+| Exposure, white balance | up to 15% and 6% per channel per episode, plus 2% flicker per frame |
+| Image noise and compression | 3 levels of 255 per pixel, then JPEG at quality 70–95, as an MJPEG webcam sends |
+| Camera delay | frames arrive 1–2 steps (33–67 ms) late; 2% of frames are dropped and the previous one repeats |
+| Wrist camera mount | off by up to 2 mm and 2° |
+
+The expert and keyboard teleop correct for the calibration offset, as a person
+steering by eye would, so expert demos still succeed while the recorded
+observations carry all of the noise. The numbers are estimates; the first
+session on the real arm should check the backlash and the camera delay.
+
+To measure how a policy copes, sweep noise as you would latency:
+
+```bash
+python -m so101_sim eval --policy … --episodes 50 --noise none,real,heavy --latency-ms 0,488
+```
+
 ## Shared datasets
 
 Datasets and checkpoints are too big for git (several files are over GitHub's
@@ -178,23 +255,28 @@ repo that generated it; check that commit out to regenerate it exactly.
 
 | Dataset | Made with | Contents |
 | --- | --- | --- |
-| [`duylam1407/so101_sim_cube_box`](https://huggingface.co/datasets/duylam1407/so101_sim_cube_box) (public) | commit `6e41556`, `python -m so101_sim generate --name sim_cube_box --episodes 200 --randomize full` | 200 expert episodes, 55,067 frames, 30 fps, seeds 0–199, default start spread; 200/200 expert successes; 662 MB. Hub revision `d926fb5`, tag `v3.0` |
+| [`duylam1407/so101_sim_cube_box`](https://huggingface.co/datasets/duylam1407/so101_sim_cube_box) (public) | commit `6e41556`, `python -m so101_sim generate --name sim_cube_box --episodes 200 --randomize full` | 200 expert episodes, 55,067 frames, 30 fps, seeds 0–199, default start spread; one 3 cm cube, no noise, camera1 in the old `front` position (regenerate with `--camera1 front` at later commits); 200/200 expert successes; 662 MB. Hub revision `d926fb5`, tag `v3.0` |
+| [`duylam1407/so101_sim_multi_object_noisy`](https://huggingface.co/datasets/duylam1407/so101_sim_multi_object_noisy) (public) | commit `8767d5b`, `python -m so101_sim generate --name sim_multi_object_noisy --episodes 300 --randomize full --objects all --scene mixed --noise real` | 300 expert episodes, 82,408 frames, 30 fps, seeds 0–299; `top` camera1; all five objects (52 cube, 57 block, 67 cylinder, 60 ball, 64 marker); scenes 89 `single`, 110 `colors`, 101 `kinds`, 33 distinct instructions; `real` noise in every episode; 300/300 expert successes; 1.0 GB. Each episode's scene and noise draw are in `meta/so101_sim_episodes.jsonl`. Hub revision `741c9dd`, tag `v3.0` |
+
+Train new policies on `so101_sim_multi_object_noisy`: it has the camera position,
+the noise and the language the real task will have. `so101_sim_cube_box` stays
+for comparison with the first runs.
 
 `lerobot-train` downloads a dataset by its id, so no copying or login is needed:
 
 ```bash
 lerobot-train --policy.path=lerobot/smolvla_base \
-  --dataset.repo_id=duylam1407/so101_sim_cube_box \
+  --dataset.repo_id=duylam1407/so101_sim_multi_object_noisy \
   --policy.device=cuda --policy.push_to_hub=false \
   --batch_size=64 --steps=20000 --output_dir=outputs/train/smolvla_sim
 ```
 
-Training runs on it so far:
+Training runs so far:
 
 | Run | Where | Settings | Status |
 | --- | --- | --- | --- |
-| `act_sim` | M1 Pro laptop, MPS | ACT, `chunk_size` and `n_action_steps` 50, batch 8, 20k steps, checkpoint every 5k, `--dataset.video_backend=pyav` | started 2026-11-19; about 1.07 s/step (6 h in all), loss 0.24 at step 7k. Checkpoints stay on the laptop until one is evaluated |
-| `smolvla_sim` | RTX 4090 | the command above | not started |
+| `act_sim` | M1 Pro laptop, MPS | `so101_sim_cube_box`; ACT, `chunk_size` and `n_action_steps` 50, batch 8, 20k steps (2.9 epochs), checkpoint every 5k, `--dataset.video_backend=pyav` | done 2026-11-20, 5.7 h, final loss 0.096. Last checkpoint, 20 episodes each, async at 0 ms, `--camera1 front`: 6/20 without noise ([record](../../results/20261120-103142_sim-eval_act_sim-last_async_0ms.json)), 5/20 at `real` ([record](../../results/20261120-103723_sim-eval_act_sim-last_async_0ms_noise-real.json)), 2/20 at `heavy` ([record](../../results/20261120-103723_sim-eval_act_sim-last_async_0ms_noise-heavy.json)). Undertrained; the intervals overlap, so the noise effect is not yet measured. Checkpoints stay on the laptop |
+| `smolvla_sim` | RTX 4090 | the command above, on `so101_sim_multi_object_noisy` | not started |
 
 ## Matching the real arm
 
@@ -213,12 +295,16 @@ code:
 
 then pass `--joint-map my_arm.json` to any command.
 
-**Cameras.** `camera1` sits 62 cm in front of the base and 42 cm up, aimed at the
-table 20 cm in front of the base, with a 52° vertical field of view (a Brio at
-78° diagonal, cropped to 4:3). Measure the stand in ENG276 and pass
-`--camera1-pos X,Y,Z --camera1-target X,Y,Z` (metres; x forward from the arm
-base, y to its left, z up). `camera2` is the wrist camera on Menagerie's camera
-mount.
+**Cameras.** `camera1` is a top view, because in `lerobot/smolvla_base`'s
+training data camera1 is a top view. It sits 70 cm above the table and 30 cm in
+front of the workspace (at x = 0.50 m), aimed back at the table 20 cm in front of
+the base, so the arm is at the top of the image, with a 52° vertical field of
+view (a Brio at 78° diagonal, cropped to 4:3). Straight down over the workspace
+the raised arm hides the objects. `--camera1 front` gives the view datasets
+before 2026-11-20 used: 62 cm in front of the base, 42 cm up. Measure the real
+mount in ENG276 and pass `--camera1-pos X,Y,Z --camera1-target X,Y,Z` (metres;
+x forward from the arm base, y to its left, z up). `camera2` is the wrist camera
+on Menagerie's camera mount; check its view against the real one too.
 
 **Episodes** start near a raised home pose with the jaws about 16 cm over the
 table (`--home` changes it). The real arm's folded rest pose puts the jaws inside
@@ -252,6 +338,8 @@ LeRobot's follower writes `Max_Torque_Limit = 500` (50%) to the gripper.
 ```text
 so101_sim/
   env.py          scene, physics, cameras, randomization, success check
+  objects.py      the objects, their sizes and grasps, colours, multi-object scenes
+  noise.py        sensor, servo and camera noise of a real arm
   units.py        sim radians <-> LeRobot degrees and gripper 0-100
   ik.py           5-DoF inverse kinematics (position + pitch, roll set directly)
   expert.py       scripted pick-and-place
