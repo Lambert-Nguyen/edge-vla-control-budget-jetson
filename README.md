@@ -176,6 +176,13 @@ LeRobot datasets with the same features as `hardware/so101_lab.sh`, and `eval`
 writes success records to `results/` with chunk latency taken from a harness
 record. See [sim/so101_sim/README.md](sim/so101_sim/README.md).
 
+A 200-episode expert dataset made with it is public on Hugging Face as
+[`duylam1407/so101_sim_cube_box`](https://huggingface.co/datasets/duylam1407/so101_sim_cube_box),
+so `lerobot-train --dataset.repo_id=duylam1407/so101_sim_cube_box` trains on it
+without generating it again. Which commit made it, and the training runs on it,
+are under
+[Shared datasets](sim/so101_sim/README.md#shared-datasets).
+
 **RoboTwin 2.0.**
 
 > _TODO: RoboTwin 2.0 install, asset download, and the task subset used for
@@ -241,14 +248,31 @@ record. See [sim/so101_sim/README.md](sim/so101_sim/README.md).
 Model checkpoints, TensorRT engines, datasets, episode recordings, videos, and
 large logs are all excluded by [.gitignore](.gitignore). Store them on the
 NVMe or in shared team storage and reference them by path in a config. If you
-find yourself running `git add -f` on a weight file, stop.
+find yourself running `git add -f` on a weight file, stop. Datasets and
+checkpoints the team shares go on Hugging Face, and the README of the code that
+made them records the repo id and the commit, as
+[Shared datasets](sim/so101_sim/README.md#shared-datasets) does.
 
 ## Status
 
-295A: scaffolding and baseline characterization in progress. As of
-2026-09-28 the Jetson environments and the measurement harness (latency,
-memory, board power) are verified on `sjsujetson-36`. The arm is not ordered
-yet. See the [2026-09-29 advisor update](docs/reports/2026-09-29-advisor-update.md).
+295A: baseline characterization in progress. As of 2026-11-20:
+
+- **Jetson.** The environments and the measurement harness (latency, memory,
+  board power) are verified on `sjsujetson-36`. TensorRT is installed, the
+  first engine is built and timed, and SmolVLA baselines are recorded in the
+  sweep setting (MAXN SUPER, pinned clocks, 30 Hz), three runs each, on
+  2026-10-26.
+- **Arm.** The SO-101 leader and follower are with a teammate; bring-up on
+  our own pair is pending. `hardware/so101_lab.sh` is ready for recording demos
+  and running policies.
+- **Simulation.** The SO-101 simulator is built and tested on Windows, macOS
+  and Linux. A 200-episode expert dataset is
+  [on Hugging Face](https://huggingface.co/datasets/duylam1407/so101_sim_cube_box).
+  An ACT policy is training on it as an end-to-end check, and SmolVLA is next,
+  on the RTX 4090. No simulated success rate is recorded yet.
+
+See the [2026-09-29 advisor update](docs/reports/2026-09-29-advisor-update.md)
+for the earlier state.
 
 ## License
 

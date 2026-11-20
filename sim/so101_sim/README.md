@@ -193,7 +193,7 @@ Training runs on it so far:
 
 | Run | Where | Settings | Status |
 | --- | --- | --- | --- |
-| `act_sim` | M1 Pro laptop, MPS | ACT, `chunk_size` and `n_action_steps` 50, batch 8, 20k steps, `--dataset.video_backend=pyav` | in progress, about 1 s/step |
+| `act_sim` | M1 Pro laptop, MPS | ACT, `chunk_size` and `n_action_steps` 50, batch 8, 20k steps, checkpoint every 5k, `--dataset.video_backend=pyav` | started 2026-11-19; about 1.07 s/step (6 h in all), loss 0.24 at step 7k. Checkpoints stay on the laptop until one is evaluated |
 | `smolvla_sim` | RTX 4090 | the command above | not started |
 
 ## Matching the real arm
