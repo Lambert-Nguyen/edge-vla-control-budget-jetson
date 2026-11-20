@@ -170,6 +170,8 @@ def main() -> int:
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--cases", type=int, default=4, help="L0 test inputs (default: %(default)s)")
     ap.add_argument("--json", type=Path)
+    ap.add_argument("--reference", type=int, default=0, metavar="N",
+                    help="save the first N cases (inputs and ONNX outputs) to <out>/expert_reference.npz")
     args = ap.parse_args()
 
     import numpy as np
@@ -214,12 +216,18 @@ def main() -> int:
 
     sess = ort.InferenceSession(str(path), providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
     in_names = [i.name for i in sess.get_inputs()]
-    worst = 0.0
-    for c, r in zip(cases, ref):
+    worst, saved = 0.0, {}
+    for i, (c, r) in enumerate(zip(cases, ref)):
         feeds = {n: a.detach().cpu().numpy() for n, a in zip(names, c) if n in in_names}
         out = sess.run(None, feeds)[0]
         rr = r.cpu().numpy()
         worst = max(worst, float(np.abs(out - rr).max() / np.abs(rr).max()))
+        if i < args.reference:
+            saved.update({f"case{i:02d}/{n}": a for n, a in feeds.items()})
+            saved[f"case{i:02d}/velocity"] = out
+    if saved:
+        np.savez(args.out / "expert_reference.npz", **saved)
+        print(f"saved {args.reference} reference cases to {args.out / 'expert_reference.npz'}", flush=True)
     ok = worst <= 0.01
     print(f"L0: ONNX Runtime vs PyTorch on {len(cases)} cases: max diff {100 * worst:.4f}% of the largest "
           f"velocity (limit 1%) -> {'PASS' if ok else 'FAIL'}", flush=True)
