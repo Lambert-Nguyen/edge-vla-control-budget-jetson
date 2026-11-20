@@ -23,4 +23,7 @@ park_step_deg: 2.0
 # shoulder servo to lift again (bench case B-1, Nov 20). Our tasks are in front,
 # so the arm stays within -45 behind. PARK and the rest pose ignore these limits.
 limit_overrides: {shoulder_lift: [-45.0, 38.0]}
+# Whole arm straight up, measured with the live reader on Nov 20. A straight
+# elbow is about -84 on this arm, and 0 is the L shape.
+upright_pose_deg: {shoulder_pan: -8.7, shoulder_lift: 2.1, elbow_flex: -83.9, wrist_flex: 4.3, wrist_roll: -1.0}
 rest_pose_deg: {shoulder_pan: -10.7, shoulder_lift: -103.8, elbow_flex: 93.1, wrist_flex: 71.3, wrist_roll: -4.2, gripper: 0.9}

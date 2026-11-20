@@ -52,6 +52,10 @@ class SafetyConfig:
     # table is above the calibrated end. null keeps the computed limit. A value
     # can only make a limit tighter, never wider.
     limit_overrides: dict[str, list] | None = None
+    # The joint values when the whole arm points straight up, measured by hand.
+    # Not used by the rules yet. A gripper height check needs it to match
+    # LeRobot degrees with the angles of the arm model.
+    upright_pose_deg: dict[str, float] | None = None
 
     @classmethod
     def from_dict(cls, d: dict) -> "SafetyConfig":
