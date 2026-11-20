@@ -1,0 +1,18 @@
+# configs/safety/team_follower.yaml
+# Team SO-ARM101 Pro kit follower, 12 V supply. Calibration team_follower.json (Nov 4)
+arm: team_follower               # calibration id
+control_hz: 30
+max_step_deg: 3.0               # about 90 deg/s at 30 Hz
+gripper_max_step: 5.0           # gripper uses 0-100 units
+soft_margin_deg: 5.0            # inside the calibrated range
+gripper_limits: [2, 98]
+watchdog_ms: 150                # hold is written before 200 ms (E-8)
+watchdog_check_ms: 10
+bad_actions_to_stop: 5
+voltage_v: [11.0, 12.8]             # 12 V supply, 11.9 V measured on Nov 4
+temp_warn_c: 55
+temp_stop_c: 65
+health_every_steps: 15
+bus_fail_steps_to_stop: 3
+park_step_deg: 2.0
+rest_pose_deg: null             # written by "so101_lab.sh rest-pose"

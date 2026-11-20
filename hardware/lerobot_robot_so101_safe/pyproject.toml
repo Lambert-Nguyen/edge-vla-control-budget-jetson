@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# LeRobot imports any installed package whose name starts with lerobot_robot_.
+name = "lerobot_robot_so101_safe"
+version = "0.1.0"
+description = "Safety layer for the SO-101 follower arm (robot type so101_safe_follower)"
+requires-python = ">=3.10"
+dependencies = ["pyyaml"]
+
+[tool.setuptools]
+packages = ["lerobot_robot_so101_safe"]
