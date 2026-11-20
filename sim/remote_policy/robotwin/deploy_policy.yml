@@ -3,4 +3,5 @@ host: sjsujetson-36.local       # the Jetson
 port: 8765
 action_type: ee                 # what the server returns: "ee" (16-d) or "qpos" (14-d)
 exc_action_size: 7              # actions played from each chunk before the next request
+image_size: 224                 # longer side of each frame sent, 0 = full size. Hy-VLA uses 224
 log_dir: eval_result/remote_link

@@ -24,16 +24,31 @@ if str(REPO_ROOT) not in sys.path:
 from sim.remote_policy.client import RemotePolicy  # noqa: E402
 
 
-def encode_obs(observation: dict[str, Any]) -> dict[str, np.ndarray]:
+def shrink(img: np.ndarray, size: int) -> np.ndarray:
+    """Scale an image down so its longer side is `size`, keeping its shape.
+
+    No padding here: the policy pads to a square itself (Hy-VLA resize_with_pad),
+    so the result is the same as sending the full frame, with fewer bytes on Wi-Fi.
+    """
+    h, w = img.shape[:2]
+    scale = size / max(h, w)
+    if size <= 0 or scale >= 1:
+        return img
+    import cv2
+
+    return cv2.resize(img, (round(w * scale), round(h * scale)), interpolation=cv2.INTER_LINEAR)
+
+
+def encode_obs(observation: dict[str, Any], image_size: int = 0) -> dict[str, np.ndarray]:
     """Three uint8 HxWx3 images, the 16-d end-effector state and the 14-d joints."""
     ep = observation["endpose"]
     state = np.array([*ep["left_endpose"], ep["left_gripper"], *ep["right_endpose"], ep["right_gripper"]],
                      dtype=np.float32)
     cams = observation["observation"]
     return {
-        "head": cams["head_camera"]["rgb"],
-        "left": cams["left_camera"]["rgb"],
-        "right": cams["right_camera"]["rgb"],
+        "head": shrink(cams["head_camera"]["rgb"], image_size),
+        "left": shrink(cams["left_camera"]["rgb"], image_size),
+        "right": shrink(cams["right_camera"]["rgb"], image_size),
         "state": state,
         "joints": np.asarray(observation["joint_action"]["vector"], dtype=np.float32),
     }
@@ -45,6 +60,7 @@ class RemoteModel:
         self.port = int(usr_args.get("port", 8765))
         self.action_type = usr_args.get("action_type", "ee")
         self.exc = int(usr_args.get("exc_action_size", 7))
+        self.image_size = int(usr_args.get("image_size", 224))
         self.log_dir = Path(usr_args.get("log_dir", "eval_result/remote_link"))
         self.client = RemotePolicy(self.host, self.port)
         self.info = self.client.info()
@@ -54,7 +70,7 @@ class RemoteModel:
 
     def step(self, TASK_ENV, observation) -> None:
         if not self.queue:
-            chunk = self.client.infer(encode_obs(observation), TASK_ENV.get_instruction())
+            chunk = self.client.infer(encode_obs(observation, self.image_size), TASK_ENV.get_instruction())
             self.queue.extend(np.asarray(chunk)[: self.exc])
         TASK_ENV.take_action(self.queue.popleft(), action_type=self.action_type)
 
