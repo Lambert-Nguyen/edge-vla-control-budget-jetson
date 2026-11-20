@@ -1,0 +1,58 @@
+{
+  "kind": "hyvla_workstation_timing",
+  "timestamp": "2026-11-20T07:41:23.367517+00:00",
+  "config": {
+    "ckpt": "/home/james-4090/hyvla/ckpt/Hy-Embodied-0.5-VLA-RoboTwin",
+    "dtypes": "bfloat16",
+    "steps": "None",
+    "iters": "20",
+    "warmup": "3",
+    "json": "results/20261119-233946_rtx4090-hyvla-robotwin-bf16-10step.json"
+  },
+  "checkpoint": {
+    "path": "/home/james-4090/hyvla/ckpt/Hy-Embodied-0.5-VLA-RoboTwin",
+    "chunk_size": 40,
+    "num_steps": 10,
+    "image_px": 224,
+    "history_frames": 6,
+    "cameras": 3
+  },
+  "params_m": {
+    "backbone_vlm": 3785.08696,
+    "action_expert": 862.055424,
+    "other": 3.24816
+  },
+  "load_s": 82.20772042899989,
+  "runs": {
+    "bfloat16": {
+      "chunk": {
+        "n": 20,
+        "mean_ms": 450.99296879993744,
+        "p50_ms": 450.3566809999029,
+        "p90_ms": 451.98685200011823,
+        "p99_ms": 460.1361069999257,
+        "min_ms": 449.0228320000824,
+        "max_ms": 460.1361069999257
+      },
+      "finite": true,
+      "pred_shape": [
+        1,
+        40,
+        20
+      ],
+      "weights_gib": 8.662027388811111,
+      "gpu_peak_allocated_gib": 8.819743156433105
+    }
+  },
+  "host": {
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "torch": "2.7.1+cu128",
+    "cuda": "12.8",
+    "python": "3.12.3"
+  },
+  "git": {
+    "commit": "d6ffbcb13fe88982e9ff7d5a83fb7c42c93083cf",
+    "branch": "feat/hyvla-baseline-timing",
+    "dirty": false
+  }
+}
