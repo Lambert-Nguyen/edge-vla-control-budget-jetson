@@ -271,6 +271,38 @@ made them records the repo id and the commit, as
   An ACT policy is training on it as an end-to-end check, and SmolVLA is next,
   on the RTX 4090. No simulated success rate is recorded yet.
 
+### Next steps
+
+In order; each says what it needs and what it produces.
+
+1. **Train SmolVLA on the sim dataset** (RTX 4090). Run the command under
+   [Shared datasets](sim/so101_sim/README.md#shared-datasets); it downloads the
+   data by id. Upload `checkpoints/last/pretrained_model` to Hugging Face as a
+   model repo and add it to that section with the commit it was trained at.
+2. **Evaluate ACT across latencies** (any laptop, once `act_sim` finishes).
+   `python -m so101_sim eval` with `--latency-ms 0,250,500,750,1000,1250`, sync
+   and async, 50 episodes each. This checks the train-to-eval pipeline and
+   gives the first records in `results/`.
+3. **Evaluate SmolVLA at the Jetson's latency.** The same sweep, plus one run
+   with `--latency-from` the pinned SmolVLA record in `results/`. This is the
+   first success-versus-latency curve for the report.
+4. **First session on our own arm** (whoever has the follower). Things only the
+   arm can settle, all listed in
+   [Matching the real arm](sim/so101_sim/README.md#matching-the-real-arm):
+   - calibrate the follower and leader with `lerobot-calibrate`;
+   - put the follower in a few poses and compare its readings with the
+     simulator's joint readout; write a joint map if any joint is mirrored or
+     offset;
+   - measure the front camera stand (position and the point it looks at, in
+     metres from the arm base) for `--camera1-pos` and `--camera1-target`;
+   - record a few joint trajectories so the simulator's servo gains can be
+     fitted to our servos;
+   - try the simulator's *Real follower* mirror once, slowly.
+5. **Language grounding in the simulator.** Several cube colours and target
+   places, with instructions that name them, so the instruction changes what
+   the arm should do. Needs a change to the scene, the expert and
+   randomization in `sim/so101_sim/`.
+
 See the [2026-09-29 advisor update](docs/reports/2026-09-29-advisor-update.md)
 for the earlier state.
 
