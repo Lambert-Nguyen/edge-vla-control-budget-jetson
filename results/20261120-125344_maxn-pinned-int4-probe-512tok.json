@@ -1,0 +1,84 @@
+{
+  "kind": "trt_int4_probe",
+  "timestamp": "2026-11-20T20:59:09.806976+00:00",
+  "config": {
+    "tokens": 512,
+    "blocks": 4,
+    "hidden": 2048,
+    "mlp": 6144,
+    "block_size": 128
+  },
+  "weight_mb_fp16": 301.989888,
+  "runs": {
+    "fp16_fp16": {
+      "ok": true,
+      "flags": [
+        "--fp16"
+      ],
+      "gpu_mean_ms": 15.3753,
+      "gpu_median_ms": 15.3708,
+      "gpu_p99_ms": 15.6182,
+      "engine_mb": 303.037412,
+      "max_abs_err": 0.0117567777633667,
+      "rel_err": 0.0040952409617602825
+    },
+    "int4_stronglyTyped": {
+      "ok": true,
+      "flags": [
+        "--stronglyTyped"
+      ],
+      "gpu_mean_ms": 20.031,
+      "gpu_median_ms": 20.0588,
+      "gpu_p99_ms": 20.3669,
+      "engine_mb": 77.961836,
+      "max_abs_err": 0.007021576166152954,
+      "rel_err": 0.002445827005431056
+    },
+    "int4_fp16_int4": {
+      "ok": true,
+      "flags": [
+        "--fp16",
+        "--int4"
+      ],
+      "gpu_mean_ms": 19.997,
+      "gpu_median_ms": 20.0283,
+      "gpu_p99_ms": 20.3213,
+      "engine_mb": 77.954468,
+      "max_abs_err": 0.012141585350036621,
+      "rel_err": 0.004229281097650528
+    }
+  },
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": null,
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 1020000000,
+        "max_hz": 1020000000,
+        "cur_hz": 1020000000,
+        "pinned": true
+      },
+      "cpu0": {
+        "min_khz": 1728000,
+        "max_khz": 1728000,
+        "cur_khz": 1728000,
+        "pinned": true,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": true
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "757d4cb01416e2046a550a55ba4991ee7bc38a03",
+    "branch": "exp/trt-int4-probe",
+    "dirty": false
+  }
+}
