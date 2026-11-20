@@ -1,0 +1,6 @@
+# Remote policy link: the policy runs on the Jetson, RoboTwin on the workstation.
+host: sjsujetson-36.local       # the Jetson
+port: 8765
+action_type: ee                 # what the server returns: "ee" (16-d) or "qpos" (14-d)
+exc_action_size: 7              # actions played from each chunk before the next request
+log_dir: eval_result/remote_link
