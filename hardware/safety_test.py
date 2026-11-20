@@ -105,7 +105,7 @@ def main() -> int:
     ap.add_argument("--id", required=True)
     ap.add_argument("--config", required=True, help="this arm's safety config")
     ap.add_argument("--wrong-config", help="another arm's config, for B-7")
-    ap.add_argument("--cases", default="B-1,B-2,B-3,B-4,B-5,B-6,B-7,B-8",
+    ap.add_argument("--cases", default="B-1,B-2,B-3,B-4,B-5,B-6,B-7,B-8,B-9",
                     help="cases to run, e.g. --cases B-1 (B-6 parks the arm at the end in any case)")
     args = ap.parse_args()
     CASES.update(c.strip() for c in args.cases.split(","))
@@ -207,6 +207,30 @@ def main() -> int:
             record("B-4", ok, hold_after_ms=gap, moved_after_hold_deg=round(moved(settle, ["shoulder_pan"]), 2))
             drive(robot, start, steps=30)
 
+        if ask("B-9: shoulder forward and elbow folding together, toward the table (height check)."):
+            # The combination that reached the table with joint limits alone. Both joints
+            # get a goal at their limit, so only the height check can stop the gripper.
+            from lerobot_robot_so101_safe.kinematics import lowest_z
+
+            s = robot.safety
+            if not s.height_check:
+                record("B-9", False, reason="height_check is off. Run hardware/table_calibration.py first")
+            else:
+                start = present(robot)
+                goal = dict(start)
+                goal["shoulder_lift"] = lim["shoulder_lift"][1]
+                goal["elbow_flex"] = lim["elbow_flex"][1]
+                before = robot.core.counters.clip_height["arm"]
+                log = []
+                drive(robot, goal, steps=int(8 * HZ), log=log)
+                low = min(lowest_z(p, s.model_offsets_deg) for p in log) - s.table_z_m
+                clips = robot.core.counters.clip_height["arm"] - before
+                floor = s.table_margin_m
+                record("B-9", low >= floor - 0.005 and clips > 0,
+                       lowest_above_table_mm=round(1000 * low, 1), floor_mm=round(1000 * floor, 1),
+                       clip_height_steps=clips)
+                drive_until(robot, start, "shoulder_lift", start["shoulder_lift"])
+
         if ask("B-5: 5 bad actions in a row, then good actions that must be ignored."):
             for _ in range(5):
                 a = pos_action(present(robot))
@@ -234,11 +258,11 @@ def main() -> int:
                                    "counters": robot.core.counters.as_dict()}, indent=2) + "\n")
         print(f"\nwrote {out}")
         failed = [c for c, r in results.items() if not r["pass"]]
-        if len(CASES) < 8:
+        if len(CASES) < 9:
             print(f"Cases run {sorted(results)}:", "PASS" if not failed else f"FAIL {failed}",
-                  "(E-8 needs all 8 cases, from this run and earlier ones)")
+                  "(E-8 needs all 9 cases, from this run and earlier ones)")
         else:
-            print("E-8 bench test:", "PASS" if not failed and len(results) >= 8 else f"not passed ({failed or 'skipped cases'})")
+            print("E-8 bench test:", "PASS" if not failed and len(results) >= 9 else f"not passed ({failed or 'skipped cases'})")
     return 0
 
 
