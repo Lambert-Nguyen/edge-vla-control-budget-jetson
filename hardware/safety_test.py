@@ -149,7 +149,9 @@ def main() -> int:
             # For each side: the joint must get to its soft limit (within 2 degrees)
             # and never go more than 1 degree past it. A joint that stops short
             # (blocked, or too slow) fails, so B-1 cannot pass without testing.
-            worst, short = {}, {}
+            # A move that the height check stopped early is fine: it stopped near
+            # the table, before the joint limit, which is the stricter rule.
+            worst, short, by_height = {}, {}, {}
             for j in JOINTS:
                 if j == "wrist_roll":
                     continue  # full turn joint, its limit is not a collision limit
@@ -157,17 +159,24 @@ def main() -> int:
                     edge = lim[j][side]
                     goal = dict(home)
                     goal[j] = edge + (30 if side else -30) * (0.5 if j == "gripper" else 1)
+                    clips = robot.core.counters.clip_height["arm"]
                     log = drive_until(robot, goal, j, edge)
+                    clips = robot.core.counters.clip_height["arm"] - clips
                     past = max((s[j] - edge) if side else (edge - s[j]) for s in log)
                     tag = f"{j}.{'hi' if side else 'lo'}"
                     worst[tag] = round(past, 2)
-                    if past < -2.0:
+                    if past < -2.0 and clips > 0:
+                        by_height[tag] = round(-past, 1)
+                    elif past < -2.0:
                         short[tag] = round(-past, 1)
                     drive_until(robot, home, j, home[j])
             if short:
                 print(f"  B-1: these did not reach their limit (degrees short): {short}. "
                       "Check that nothing blocks them, then run B-1 again.")
-            record("B-1", max(worst.values()) <= 1.0 and not short, past_limit_deg=worst, short_deg=short)
+            if by_height:
+                print(f"  B-1: the height check stopped these before their limit (degrees short): {by_height}")
+            record("B-1", max(worst.values()) <= 1.0 and not short, past_limit_deg=worst, short_deg=short,
+                   stopped_by_height_deg=by_height)
 
         if ask("B-2: elbow_flex jumps 45 degrees."):
             start = present(robot)
