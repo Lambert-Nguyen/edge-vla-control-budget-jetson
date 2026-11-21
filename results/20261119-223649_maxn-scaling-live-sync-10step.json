@@ -1,0 +1,148 @@
+{
+  "kind": "smolvla_live_loop",
+  "timestamp": "2026-11-20T06:38:13.412836+00:00",
+  "config": {
+    "mode": "sync",
+    "policy": "lerobot/smolvla_base",
+    "cam1": "/dev/v4l/by-id/usb-046d_Logitech_BRIO_72580AD9-video-index0",
+    "cam2": "/dev/v4l/by-id/usb-Generic_USB_HD_Camera_200910120001-video-index0",
+    "cam1_fps": 60,
+    "cam2_fps": 30,
+    "width": 640,
+    "height": 480,
+    "hz": 30.0,
+    "seconds": 30.0,
+    "steps": 10,
+    "trigger": null,
+    "follower_port": null,
+    "follower_id": "team_follower",
+    "task": "Pick up the cube and put it in the box.",
+    "no_power": false,
+    "json": "results/20261119-223649_maxn-scaling-live-sync-10step.json"
+  },
+  "policy": {
+    "path": "lerobot/smolvla_base",
+    "num_steps": 10,
+    "n_action_steps": 50,
+    "image_keys": [
+      "observation.images.camera1",
+      "observation.images.camera2"
+    ]
+  },
+  "trigger": null,
+  "loop_rate_hz": 18.027674929813184,
+  "latency": {
+    "step_work": {
+      "n": 900,
+      "mean_ms": 46.46751546444648,
+      "stdev_ms": 156.13349374552482,
+      "min_ms": 13.882866000130889,
+      "p50_ms": 24.33259300005375,
+      "p90_ms": 28.016267999646516,
+      "p99_ms": 1134.7282649999215,
+      "max_ms": 1206.7189479998888
+    },
+    "step_period": {
+      "n": 899,
+      "mean_ms": 55.470270231368346,
+      "stdev_ms": 154.9096866282337,
+      "min_ms": 33.029203999831225,
+      "p50_ms": 33.33394900027997,
+      "p90_ms": 33.433837999837124,
+      "p99_ms": 1140.0745460000508,
+      "max_ms": 1206.7246440001327
+    },
+    "chunk": {
+      "n": 18,
+      "mean_ms": 1138.510556666688,
+      "stdev_ms": 28.75492681827964,
+      "min_ms": 1061.0495800001445,
+      "p50_ms": 1134.3852270001662,
+      "p90_ms": 1178.0172989997482,
+      "p99_ms": 1206.3690939999105,
+      "max_ms": 1206.3690939999105
+    },
+    "observation": {
+      "n": 900,
+      "mean_ms": 0.11091888888636782,
+      "stdev_ms": 0.022133722089973516,
+      "min_ms": 0.06601600034628063,
+      "p50_ms": 0.10905499993896228,
+      "p90_ms": 0.12812700015274459,
+      "p99_ms": 0.19321500030855532,
+      "max_ms": 0.3974700002800091
+    }
+  },
+  "late_steps": 18,
+  "longest_stall_ms": 1206.7246440001327,
+  "queue_gaps": null,
+  "longest_gap_steps": null,
+  "dropped_actions": null,
+  "power": {
+    "source": "ina3221 sysfs",
+    "interval_ms": 50.0,
+    "n_samples": 999,
+    "duration_s": 49.900124815000254,
+    "rail_voltage_mv": {
+      "VDD_IN": 5000,
+      "VDD_CPU_GPU_CV": 4992,
+      "VDD_SOC": 5000
+    },
+    "rails": {
+      "VDD_IN": {
+        "mean_w": 6.613413413413414,
+        "peak_w": 9.28
+      },
+      "VDD_CPU_GPU_CV": {
+        "mean_w": 1.7051352792792793,
+        "peak_w": 3.674112
+      },
+      "VDD_SOC": {
+        "mean_w": 1.689129129129129,
+        "peak_w": 1.92
+      }
+    },
+    "gpu_freq_mhz": {
+      "min": 306.0,
+      "max": 1020.0
+    },
+    "tj_temp_c": {
+      "start": 51.656,
+      "max": 52.125
+    }
+  },
+  "finite": true,
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": null,
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 306000000,
+        "max_hz": 1020000000,
+        "cur_hz": 306000000,
+        "pinned": false
+      },
+      "cpu0": {
+        "min_khz": 729600,
+        "max_khz": 1728000,
+        "cur_khz": 1113600,
+        "pinned": false,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": false
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "4f1ef9a5a82c07bd512dea2bfa1d6cbf9eb3c6fa",
+    "branch": "feat/live-loop-timing",
+    "dirty": false
+  }
+}

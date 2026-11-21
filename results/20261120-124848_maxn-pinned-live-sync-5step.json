@@ -1,0 +1,148 @@
+{
+  "kind": "smolvla_live_loop",
+  "timestamp": "2026-11-20T20:49:56.486057+00:00",
+  "config": {
+    "mode": "sync",
+    "policy": "lerobot/smolvla_base",
+    "cam1": "/dev/v4l/by-id/usb-046d_Logitech_BRIO_72580AD9-video-index0",
+    "cam2": "/dev/v4l/by-id/usb-Generic_USB_HD_Camera_200910120001-video-index0",
+    "cam1_fps": 60,
+    "cam2_fps": 30,
+    "width": 640,
+    "height": 480,
+    "hz": 30.0,
+    "seconds": 30.0,
+    "steps": 5,
+    "trigger": null,
+    "follower_port": null,
+    "follower_id": "team_follower",
+    "task": "Pick up the cube and put it in the box.",
+    "no_power": false,
+    "json": "results/20261120-124848_maxn-pinned-live-sync-5step.json"
+  },
+  "policy": {
+    "path": "lerobot/smolvla_base",
+    "num_steps": 5,
+    "n_action_steps": 50,
+    "image_keys": [
+      "observation.images.camera1",
+      "observation.images.camera2"
+    ]
+  },
+  "trigger": null,
+  "loop_rate_hz": 22.787962283906584,
+  "latency": {
+    "step_work": {
+      "n": 900,
+      "mean_ms": 23.956818102224894,
+      "stdev_ms": 76.63462075650807,
+      "min_ms": 11.314316999914809,
+      "p50_ms": 12.933319000012489,
+      "p90_ms": 14.502368999956161,
+      "p99_ms": 553.2516039997972,
+      "max_ms": 591.5883850000228
+    },
+    "step_period": {
+      "n": 899,
+      "mean_ms": 43.88281793437163,
+      "stdev_ms": 73.82568608974294,
+      "min_ms": 33.138270000108605,
+      "p50_ms": 33.333566999999675,
+      "p90_ms": 33.33939200001623,
+      "p99_ms": 554.0131989998827,
+      "max_ms": 591.6103690001364
+    },
+    "chunk": {
+      "n": 18,
+      "mean_ms": 559.8940843888663,
+      "stdev_ms": 15.110119429346216,
+      "min_ms": 544.7891269998308,
+      "p50_ms": 553.0213330000606,
+      "p90_ms": 587.6774119999482,
+      "p99_ms": 591.3443859999461,
+      "max_ms": 591.3443859999461
+    },
+    "observation": {
+      "n": 900,
+      "mean_ms": 0.06876182000446028,
+      "stdev_ms": 0.013307290305510077,
+      "min_ms": 0.05254400002741022,
+      "p50_ms": 0.06470300013461383,
+      "p90_ms": 0.07974400000421156,
+      "p99_ms": 0.12310400006754207,
+      "max_ms": 0.1893749999908323
+    }
+  },
+  "late_steps": 18,
+  "longest_stall_ms": 591.6103690001364,
+  "queue_gaps": null,
+  "longest_gap_steps": null,
+  "dropped_actions": null,
+  "power": {
+    "source": "ina3221 sysfs",
+    "interval_ms": 50.0,
+    "n_samples": 790,
+    "duration_s": 39.450116492999996,
+    "rail_voltage_mv": {
+      "VDD_IN": 4984,
+      "VDD_CPU_GPU_CV": 4968,
+      "VDD_SOC": 4976
+    },
+    "rails": {
+      "VDD_IN": {
+        "mean_w": 8.771385762025316,
+        "peak_w": 12.36032
+      },
+      "VDD_CPU_GPU_CV": {
+        "mean_w": 2.7991850126582283,
+        "peak_w": 5.246207999999999
+      },
+      "VDD_SOC": {
+        "mean_w": 2.6607868759493667,
+        "peak_w": 3.105024
+      }
+    },
+    "gpu_freq_mhz": {
+      "min": 1020.0,
+      "max": 1020.0
+    },
+    "tj_temp_c": {
+      "start": 54.843,
+      "max": 55.875
+    }
+  },
+  "finite": true,
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": null,
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 1020000000,
+        "max_hz": 1020000000,
+        "cur_hz": 1020000000,
+        "pinned": true
+      },
+      "cpu0": {
+        "min_khz": 1728000,
+        "max_khz": 1728000,
+        "cur_khz": 1728000,
+        "pinned": true,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": true
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "831b5cd3bd3e4e3ab4fb1b59bc810e293a228fbc",
+    "branch": "feat/live-loop-timing",
+    "dirty": false
+  }
+}
