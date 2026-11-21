@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "so101-sim"
+version = "0.1.0"
+description = "SO-101 cube-to-box simulator: teleop, LeRobot demo recording, and policy evaluation with injected Jetson latency"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = [
+  "mujoco>=3.3,<5",
+  "numpy>=1.24",
+  "pillow>=10",
+]
+
+[project.optional-dependencies]
+# Recording datasets, evaluating LeRobot policies, and leader-arm teleop.
+# 0.5.1 is the version tested here and the one in the team's `arm` env; it needs Python 3.12.
+record = ["lerobot[feetech]>=0.5.1,<0.6"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+so101-sim = "so101_sim.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["so101_sim*"]
+
+[tool.setuptools.package-data]
+so101_sim = [
+  "assets/so101/*.xml",
+  "assets/so101/*.md",
+  "assets/so101/LICENSE",
+  "assets/so101/assets/*.stl",
+  "app/static/*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

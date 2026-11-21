@@ -319,6 +319,28 @@ Keep the two tracks honest in the report. A number from the aloha-agilex sim
 and a number from a fine-tuned SO-101 policy are different measurements and
 should never be averaged together.
 
+## The SO-101 simulator
+
+Track 2 has its own simulator: [`sim/so101_sim/`](../../sim/so101_sim/README.md),
+a MuJoCo model of one SO-101 follower doing our lab task, "Pick up the cube and
+put it in the box." It runs on Windows, macOS and Linux, so it does not need the
+workstation.
+
+- **Demos.** A scripted expert, keyboard teleop, or the real leader arm on USB
+  records LeRobot datasets with the same features, camera names and 30 fps as
+  `hardware/so101_lab.sh`. `lerobot-train` reads them like real data.
+- **Success under the Jetson's latency.** `python -m so101_sim eval` runs a
+  checkpoint in closed loop and injects chunk latency in simulated time, either
+  taken from a harness record in `results/` or swept. The record it writes has
+  the success rate with a Wilson interval, plus observation staleness and
+  stalls, which is the accuracy-versus-latency curve for the SO-101 track.
+
+It does not replace the arm. The renders are clean CAD colours, and the servo
+gains are not fitted to our servos, so use it for simulated success rates and
+for rehearsing recording, and train real-arm policies on real demos. Its README
+lists the checks still owed against the real follower (joint units, camera
+pose).
+
 ## RoboTwin 2.0
 
 [RoboTwin 2.0](https://github.com/RoboTwin-Platform/RoboTwin) is the simulation

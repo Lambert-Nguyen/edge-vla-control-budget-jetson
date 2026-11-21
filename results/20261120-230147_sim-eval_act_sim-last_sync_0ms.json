@@ -1,0 +1,1269 @@
+{
+  "kind": "so101_sim_eval",
+  "timestamp": "2026-11-21T07:11:52.542475+00:00",
+  "config": {
+    "policy": "/Users/duylam1407/so101_runs/act_sim/checkpoints/last/pretrained_model",
+    "mode": "sync",
+    "threshold": 0.5,
+    "episodes": 50,
+    "first_seed": 100000,
+    "randomize": "full",
+    "start_spread": 1.0,
+    "fps": 30,
+    "episode_s": 20.0,
+    "cameras": [
+      "camera1",
+      "camera2"
+    ],
+    "camera1_pos": [
+      0.62,
+      0.0,
+      0.42
+    ],
+    "camera1_target": [
+      0.2,
+      0.0,
+      0.0
+    ],
+    "objects": [
+      "cube"
+    ],
+    "scene": "single",
+    "noise": 0.0,
+    "n_action_steps": 50,
+    "num_steps": null,
+    "latency": {
+      "mean_ms": 0.0,
+      "std_ms": 0.0,
+      "min_ms": null,
+      "max_ms": null,
+      "source": "constant 0 ms"
+    }
+  },
+  "success": {
+    "k": 18,
+    "n": 50,
+    "rate": 0.36,
+    "wilson95": [
+      0.24138562967182875,
+      0.49859237989698046
+    ]
+  },
+  "staleness_ms": {
+    "mean": 810.4273847802787,
+    "p50": 800.0,
+    "p95": 1566.6666666666667,
+    "max": 1633.3333333333333
+  },
+  "stall_fraction": 0.0,
+  "wrong_object_in_box": 0,
+  "episodes": [
+    {
+      "seed": 100000,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100001,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100002,
+      "success": true,
+      "steps": 272,
+      "time_to_success_s": 9.066666666666666,
+      "inferences": 6,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 778.9215686274509,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100003,
+      "success": true,
+      "steps": 226,
+      "time_to_success_s": 7.533333333333333,
+      "inferences": 5,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 770.6489675516223,
+      "staleness_p95_ms": 1558.3333333333335
+    },
+    {
+      "seed": 100004,
+      "success": true,
+      "steps": 534,
+      "time_to_success_s": 17.8,
+      "inferences": 11,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 799.6878901373283,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100005,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100006,
+      "success": true,
+      "steps": 260,
+      "time_to_success_s": 8.666666666666666,
+      "inferences": 6,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 791.0256410256411,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100007,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100008,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100009,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100010,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100011,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100012,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100013,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100014,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100015,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100016,
+      "success": true,
+      "steps": 221,
+      "time_to_success_s": 7.366666666666666,
+      "inferences": 5,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 770.7390648567118,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100017,
+      "success": true,
+      "steps": 183,
+      "time_to_success_s": 6.1,
+      "inferences": 4,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 765.5737704918033,
+      "staleness_p95_ms": 1533.3333333333333
+    },
+    {
+      "seed": 100018,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100019,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100020,
+      "success": true,
+      "steps": 223,
+      "time_to_success_s": 7.433333333333334,
+      "inferences": 5,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 770.254110612855,
+      "staleness_p95_ms": 1563.3333333333326
+    },
+    {
+      "seed": 100021,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100022,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100023,
+      "success": true,
+      "steps": 371,
+      "time_to_success_s": 12.366666666666667,
+      "inferences": 8,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 789.3081761006289,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100024,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100025,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100026,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100027,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100028,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100029,
+      "success": true,
+      "steps": 276,
+      "time_to_success_s": 9.2,
+      "inferences": 6,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 778.9855072463768,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100030,
+      "success": true,
+      "steps": 341,
+      "time_to_success_s": 11.366666666666667,
+      "inferences": 7,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 798.6314760508309,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100031,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100032,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100033,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100034,
+      "success": true,
+      "steps": 274,
+      "time_to_success_s": 9.133333333333333,
+      "inferences": 6,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 778.7104622871046,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100035,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100036,
+      "success": true,
+      "steps": 217,
+      "time_to_success_s": 7.233333333333333,
+      "inferences": 5,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 773.57910906298,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100037,
+      "success": true,
+      "steps": 517,
+      "time_to_success_s": 17.233333333333334,
+      "inferences": 11,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 798.581560283688,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100038,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100039,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100040,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100041,
+      "success": true,
+      "steps": 475,
+      "time_to_success_s": 15.833333333333334,
+      "inferences": 10,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 794.7368421052631,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100042,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100043,
+      "success": true,
+      "steps": 218,
+      "time_to_success_s": 7.266666666666667,
+      "inferences": 5,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 772.6299694189602,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100044,
+      "success": true,
+      "steps": 353,
+      "time_to_success_s": 11.766666666666667,
+      "inferences": 8,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 810.0094428706326,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100045,
+      "success": true,
+      "steps": 470,
+      "time_to_success_s": 15.666666666666666,
+      "inferences": 10,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 795.3900709219859,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100046,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100047,
+      "success": true,
+      "steps": 249,
+      "time_to_success_s": 8.3,
+      "inferences": 5,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 813.3868808567603,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100048,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    },
+    {
+      "seed": 100049,
+      "success": false,
+      "steps": 600,
+      "time_to_success_s": null,
+      "inferences": 12,
+      "stall_steps": 0,
+      "task": "Pick up the cube and put it in the box.",
+      "wrong_object_in_box": false,
+      "scene": {
+        "scene": "single",
+        "target": "cube",
+        "object": {
+          "kind": "cube",
+          "size_m": [
+            0.015,
+            0.015,
+            0.015
+          ]
+        }
+      },
+      "staleness_mean_ms": 816.6666666666666,
+      "staleness_p95_ms": 1566.6666666666667
+    }
+  ],
+  "host": {
+    "machine": "arm64",
+    "system": "Darwin",
+    "python": "3.12.8",
+    "git_commit": "843c0fa"
+  },
+  "wall_s": 597.0
+}

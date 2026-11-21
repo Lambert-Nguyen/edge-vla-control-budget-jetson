@@ -63,7 +63,9 @@ git rebase origin/main
   previously recorded results may no longer be comparable.
 - Keep PRs reviewable. If a branch touches more than a few hundred lines
   across unrelated areas, split it.
-- CI is not set up yet, so the reviewer is the only check. Run the code and
+- CI covers only the SO-101 simulator: `.github/workflows/so101-sim.yml` runs
+  its tests on Windows, macOS and Linux when anything under `sim/so101_sim/`
+  changes. Everywhere else the reviewer is the only check. Run the code and
   paste real output into the PR description; don't describe what you expect it
   to do.
 - Squash-merge into `main`. The squashed commit message follows the convention

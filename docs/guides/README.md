@@ -30,7 +30,7 @@ to be rebuilt, and you should not need it.
 | 3 | [Python environments](03-python-environments.md) | Virtual envs, Jetson torch wheels, LeRobot, the model stack | After the board boots |
 | 4 | [Arm bring-up](04-arm-bringup.md) | Assembly, servo IDs, calibration, teleop, first safe motion | When the arm arrives |
 | 5 | [First benchmark](05-first-benchmark.md) | The measurement harness and your first recorded result | After 3 |
-| 6 | [Model and simulation](06-model-and-simulation.md) | Hy-Embodied-0.5-VLA, RoboTwin 2.0, the workstation spec and how to rent one | Parallel with 4 |
+| 6 | [Model and simulation](06-model-and-simulation.md) | Hy-Embodied-0.5-VLA, RoboTwin 2.0, the SO-101 simulator, the workstation spec and how to rent one | Parallel with 4 |
 | 7 | [Troubleshooting](07-troubleshooting.md) | The failures you will actually hit | As needed |
 
 ## What this project is doing, in plain terms
@@ -100,3 +100,6 @@ live in the repo proper:
 - `hardware/hello_arm.py`. Proves the arm moves safely.
 - `benchmarks/hello_latency.py`. The first real measurement, and the template
   every later harness copies.
+- `sim/so101_sim/`. The SO-101 simulator: practice teleop and recording on a
+  laptop before the arm is free, and measure task success at the Jetson's
+  latency. Start with its [README](../../sim/so101_sim/README.md).
