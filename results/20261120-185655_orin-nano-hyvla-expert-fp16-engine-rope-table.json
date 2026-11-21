@@ -1,0 +1,84 @@
+{
+  "kind": "trt_engine_check",
+  "timestamp": "2026-11-21T02:57:03.006744+00:00",
+  "engine": {
+    "file": "hyvla-expert-fp16-rt.engine",
+    "mib": 713.9532203674316,
+    "sha256": "01d0aa7d53c498af6477159e25dbf6f54b1fa9ee82ae7b418bb62f33cbeaa69d",
+    "inputs": [
+      "state",
+      "prefix_pad_mask",
+      "k",
+      "v",
+      "x_t",
+      "t"
+    ],
+    "outputs": [
+      "velocity"
+    ],
+    "device_mib": 29.3427734375
+  },
+  "reference": {
+    "file": "expert_reference.npz",
+    "cases": [
+      "case00",
+      "case01",
+      "case02",
+      "case03"
+    ],
+    "sha256": "2c1d29eba61362029646ca559a8c48a00f02444f93dc79b5fad0e6475e380713"
+  },
+  "check": {
+    "max_rel_diff": [
+      0.006242307834327221,
+      0.003953841049224138,
+      0.00452615600079298,
+      0.00445900484919548
+    ],
+    "limit": 0.02,
+    "pass": true
+  },
+  "latency_ms": {
+    "p50": 22.7334580013121,
+    "p99": 36.06445499826805,
+    "iters": 100
+  },
+  "ram_available_mib": {
+    "before": 5773.18359375,
+    "after": 5461.89453125
+  },
+  "tensorrt": "10.3.0",
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": null,
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 306000000,
+        "max_hz": 1020000000,
+        "cur_hz": 306000000,
+        "pinned": false
+      },
+      "cpu0": {
+        "min_khz": 729600,
+        "max_khz": 1728000,
+        "cur_khz": 1728000,
+        "pinned": false,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": false
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "06b0ec37b3b1a572cbe55c2d561620c57cba9c47",
+    "branch": "feat/trt-engine-builder",
+    "dirty": false
+  }
+}
