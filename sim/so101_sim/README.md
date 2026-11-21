@@ -295,6 +295,27 @@ code:
 
 then pass `--joint-map my_arm.json` to any command.
 
+**The team follower's map** is in
+[`joint_maps/team_follower.json`](joint_maps/team_follower.json). It comes from
+the safety layer's table calibration (2026-11-20, 13 jaw-tip touches, 4.6 mm
+rms), which fits the same `so101.xml` to the real arm: there
+model angle = LeRobot degrees + offset, so the map's `offset_deg` is minus those
+offsets. `shoulder_lift` is off by 10.3°, `wrist_flex` by 6.4° and `elbow_flex`
+by 0.9°. The fit cannot see `shoulder_pan` or `wrist_roll`, and it assumes no
+joint is mirrored; check both with the pose comparison above. The datasets so
+far use no map, so their states and actions are in the simulator's degrees:
+fine for training and evaluating in simulation, but a policy taken from them to
+the team arm would aim 10° off on the shoulder. Use `--joint-map
+joint_maps/team_follower.json` for new datasets and for the app's *Real
+follower* mirror.
+
+**The team follower's safety limits** clip a few simulated commands. With the
+map, `so101_sim_multi_object_noisy` asks for `shoulder_lift` above the arm's
++38° in 0.8% of frames (32 of 300 episodes, mostly while reaching the box) and
+`elbow_flex` above +60° in 0.1% (4 episodes). The closed gripper is commanded
+to 0, below the layer's floor of 2, in about a third of frames, so the real
+grasp closes on 2. None of this stops an episode; the layer clips and logs it.
+
 **Cameras.** `camera1` is a top view, because in `lerobot/smolvla_base`'s
 training data camera1 is a top view. It sits 70 cm above the table and 30 cm in
 front of the workspace (at x = 0.50 m), aimed back at the table 20 cm in front of
