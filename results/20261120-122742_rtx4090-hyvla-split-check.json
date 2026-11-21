@@ -1,0 +1,67 @@
+{
+  "kind": "hyvla_split_check",
+  "git": {
+    "commit": "a28d355bce4c8a9a98f18c3275d2895c6553f850",
+    "dirty": false
+  },
+  "max_abs_diff": 0.0,
+  "max_abs_action": 1.2723313570022583,
+  "pass": true,
+  "shapes": {
+    "k": [
+      32,
+      1,
+      240,
+      4,
+      128
+    ],
+    "v": [
+      32,
+      1,
+      240,
+      4,
+      128
+    ],
+    "prefix_len": 240,
+    "lang_tokens": [
+      1,
+      64
+    ],
+    "state": [
+      1,
+      32
+    ],
+    "noise": [
+      1,
+      40,
+      32
+    ],
+    "images": [
+      [
+        1,
+        6,
+        3,
+        224,
+        224
+      ],
+      [
+        1,
+        6,
+        3,
+        224,
+        224
+      ],
+      [
+        1,
+        6,
+        3,
+        224,
+        224
+      ]
+    ]
+  },
+  "kv_cache_mb": 31.45728,
+  "seed": 0,
+  "num_steps": 10,
+  "dtype": "bfloat16"
+}
