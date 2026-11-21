@@ -1,0 +1,104 @@
+{
+  "kind": "trt_chunk_precision_probe",
+  "timestamp": "2026-11-21T03:32:23.543026+00:00",
+  "chunk": "Hy-VLA backbone language layers 8 to 15 (8 of 32), 240 prefix tokens",
+  "reference": "FP32 chunk in ONNX Runtime, 2 cases (the same cases used for INT8 calibration)",
+  "build": "trtexec, TensorRT 10.3.0, under a user cgroup with MemoryHigh=1500M",
+  "precisions": {
+    "int4": {
+      "engine_mib": 416.0887031555176,
+      "device_mib": 1517.1796875,
+      "case00": {
+        "worst_max_diff": 0.09747438635649079,
+        "cos_min": 0.9952178940472954,
+        "cos_mean": 0.9973271189142664
+      },
+      "case01": {
+        "worst_max_diff": 0.10790526383066194,
+        "cos_min": 0.9952249293904095,
+        "cos_mean": 0.9973297395425904
+      },
+      "gpu_ms": {
+        "median": 88.0366,
+        "p99": 88.729
+      },
+      "flags": "--fp16 --int4, RTN block 64"
+    },
+    "int8": {
+      "engine_mib": 751.1233940124512,
+      "device_mib": 35.18359375,
+      "case00": {
+        "worst_max_diff": 0.0976728605859233,
+        "cos_min": 0.996641507991408,
+        "cos_mean": 0.9984505974586639
+      },
+      "case01": {
+        "worst_max_diff": 0.0976728605859233,
+        "cos_min": 0.9966032706420481,
+        "cos_mean": 0.9984738862029995
+      },
+      "gpu_ms": {
+        "median": 23.3584,
+        "p99": 23.6729
+      },
+      "flags": "--int8 --fp16, W8A8, max calibration"
+    },
+    "fp16": {
+      "engine_mib": 1473.753360748291,
+      "device_mib": 37.873046875,
+      "case00": {
+        "worst_max_diff": 0.006221141786722588,
+        "cos_min": 0.9999984635984516,
+        "cos_mean": 0.9999991262852784
+      },
+      "case01": {
+        "worst_max_diff": 0.006221141786722588,
+        "cos_min": 0.9999983327681762,
+        "cos_mean": 0.9999991120187645
+      },
+      "gpu_ms": {
+        "median": 32.5112,
+        "p99": 33.2235
+      },
+      "flags": "--fp16"
+    }
+  },
+  "build_s": {
+    "int4": 102,
+    "int8": 275,
+    "fp16": 166
+  },
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": null,
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 306000000,
+        "max_hz": 1020000000,
+        "cur_hz": 306000000,
+        "pinned": false
+      },
+      "cpu0": {
+        "min_khz": 729600,
+        "max_khz": 1728000,
+        "cur_khz": 1651200,
+        "pinned": false,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": false
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "076eb07b27b524a39436b8fb089affbbb809a931",
+    "branch": "feat/trt-engine-builder",
+    "dirty": false
+  }
+}

@@ -1,0 +1,230 @@
+{
+  "kind": "trt_backbone_int8_chain",
+  "timestamp": "2026-11-21T05:00:22.711337+00:00",
+  "model": "Hy-VLA backbone, 3 cameras x 6 frames at 224 px, 64 task tokens, 240 prefix tokens",
+  "export": "W8A8 INT8 language layers (export/quantize_int8.py, max calibration on 2 cases), vision tower and embeddings FP16, split into 4 parts with export/split_backbone.py",
+  "parts": {
+    "p1": "vision, embeddings, layers 0-7, all INT8",
+    "p1x": "same, but layers 0 and 1 in FP16",
+    "p2": "layers 8-15",
+    "p3": "layers 16-23",
+    "p4": "layers 24-31"
+  },
+  "build": {
+    "tensorrt": "10.3.0",
+    "flags": "--int8 --fp16",
+    "cgroup_memory_high_mib": 1500,
+    "build_s": {
+      "p1": 900,
+      "p2": 279,
+      "p3": 273,
+      "p4": 265,
+      "p1x": 2697
+    }
+  },
+  "gpu_median_ms_trtexec": {
+    "p1": 467.198,
+    "p2": 23.3513,
+    "p3": 23.3656,
+    "p4": 22.5552
+  },
+  "p1x_profile": {
+    "total_ms": 476.22416787,
+    "vision_matmuls_ms": 239.53943000000007
+  },
+  "chain_p1x": {
+    "engines": [
+      {
+        "file": "hyvla-backbone-w8-p1x.engine",
+        "mib": 2270.1411094665527,
+        "device_mib": 95.11669921875
+      },
+      {
+        "file": "hyvla-backbone-w8-p2.engine",
+        "mib": 751.1154365539551,
+        "device_mib": 35.18359375
+      },
+      {
+        "file": "hyvla-backbone-w8-p3.engine",
+        "mib": 751.0301170349121,
+        "device_mib": 35.18359375
+      },
+      {
+        "file": "hyvla-backbone-w8-p4.engine",
+        "mib": 662.0632438659668,
+        "device_mib": 45.1328125
+      }
+    ],
+    "ram_available_mib": {
+      "before": 5935.05078125,
+      "after_load": 1380.6640625
+    },
+    "case00/k_vs_fp32": {
+      "worst_layer_max_diff": 0.8556517071415036,
+      "worst_layer": 31,
+      "cosine": 0.9925591097697493,
+      "mae": 0.0954378907001268
+    },
+    "case00/k_vs_ort_same_graph": {
+      "worst_layer_max_diff": 1.202821331837633,
+      "worst_layer": 31,
+      "cosine": 0.9828315995010086,
+      "mae": 0.12922763991085615
+    },
+    "case00/v_vs_fp32": {
+      "worst_layer_max_diff": 0.6004220569843411,
+      "worst_layer": 31,
+      "cosine": 0.9823926321516068,
+      "mae": 0.014917633119659138
+    },
+    "case00/v_vs_ort_same_graph": {
+      "worst_layer_max_diff": 1.7777570397212104,
+      "worst_layer": 25,
+      "cosine": 0.9635278632560175,
+      "mae": 0.01924935801379111
+    },
+    "case01/k_vs_fp32": {
+      "worst_layer_max_diff": 0.33941735310005827,
+      "worst_layer": 31,
+      "cosine": 0.99316781455343,
+      "mae": 0.09307293363722838
+    },
+    "case01/k_vs_ort_same_graph": {
+      "worst_layer_max_diff": 1.0794325799822724,
+      "worst_layer": 31,
+      "cosine": 0.9862260012924646,
+      "mae": 0.12128087410154245
+    },
+    "case01/v_vs_fp32": {
+      "worst_layer_max_diff": 0.35729445324973663,
+      "worst_layer": 30,
+      "cosine": 0.9842828546622457,
+      "mae": 0.014410855439264772
+    },
+    "case01/v_vs_ort_same_graph": {
+      "worst_layer_max_diff": 1.7889133543006053,
+      "worst_layer": 25,
+      "cosine": 0.9693460714764403,
+      "mae": 0.017928998847435342
+    },
+    "latency_ms": {
+      "p50": 549.4415749999462,
+      "max": 550.153426000179,
+      "iters": 20
+    }
+  },
+  "chain_p1": {
+    "engines": [
+      {
+        "file": "hyvla-backbone-w8-p1.engine",
+        "mib": 2089.1347007751465,
+        "device_mib": 95.11669921875
+      },
+      {
+        "file": "hyvla-backbone-w8-p2.engine",
+        "mib": 751.1154365539551,
+        "device_mib": 35.18359375
+      },
+      {
+        "file": "hyvla-backbone-w8-p3.engine",
+        "mib": 751.0301170349121,
+        "device_mib": 35.18359375
+      },
+      {
+        "file": "hyvla-backbone-w8-p4.engine",
+        "mib": 662.0632438659668,
+        "device_mib": 45.1328125
+      }
+    ],
+    "ram_available_mib": {
+      "before": 5978.9609375,
+      "after_load": 1462.5390625
+    },
+    "case00/k_vs_fp32": {
+      "worst_layer_max_diff": 1.30546752520857,
+      "worst_layer": 31,
+      "cosine": 0.9799069954693433,
+      "mae": 0.14094262917444192
+    },
+    "case00/k_vs_ort_same_graph": {
+      "worst_layer_max_diff": 0.38382490628451366,
+      "worst_layer": 31,
+      "cosine": 0.9972182337354409,
+      "mae": 0.05810444248056768
+    },
+    "case00/v_vs_fp32": {
+      "worst_layer_max_diff": 1.230575819015602,
+      "worst_layer": 24,
+      "cosine": 0.9578027527286799,
+      "mae": 0.021170627376460645
+    },
+    "case00/v_vs_ort_same_graph": {
+      "worst_layer_max_diff": 0.2589254678554248,
+      "worst_layer": 26,
+      "cosine": 0.9920289278932753,
+      "mae": 0.010024625006208378
+    },
+    "case01/k_vs_fp32": {
+      "worst_layer_max_diff": 1.0671856327663987,
+      "worst_layer": 31,
+      "cosine": 0.9840770134496586,
+      "mae": 0.1333092185358805
+    },
+    "case01/k_vs_ort_same_graph": {
+      "worst_layer_max_diff": 0.2554962973448602,
+      "worst_layer": 31,
+      "cosine": 0.9973163038422885,
+      "mae": 0.05688729721264134
+    },
+    "case01/v_vs_fp32": {
+      "worst_layer_max_diff": 1.399740153964008,
+      "worst_layer": 24,
+      "cosine": 0.9654102478883552,
+      "mae": 0.01976374384192659
+    },
+    "case01/v_vs_ort_same_graph": {
+      "worst_layer_max_diff": 0.29865998557087614,
+      "worst_layer": 30,
+      "cosine": 0.9920732613114266,
+      "mae": 0.009795582912525221
+    },
+    "latency_ms": {
+      "p50": 543.931894000707,
+      "max": 544.9232210012269,
+      "iters": 20
+    }
+  },
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": null,
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 306000000,
+        "max_hz": 1020000000,
+        "cur_hz": 306000000,
+        "pinned": false
+      },
+      "cpu0": {
+        "min_khz": 729600,
+        "max_khz": 1728000,
+        "cur_khz": 1190400,
+        "pinned": false,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": false
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "5a9b3aa355936791b3599224a9ade19b3610b13c",
+    "branch": "feat/trt-engine-builder",
+    "dirty": false
+  }
+}
