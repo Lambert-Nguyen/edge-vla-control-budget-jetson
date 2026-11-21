@@ -262,58 +262,84 @@ made them records the repo id and the commit, as
 
 ## Status
 
-295A: baseline characterization in progress. As of 2026-11-20:
+295A builds the baseline that 295B improves on: a VLA policy running on the
+Jetson, the measurement harness, and evaluation in simulation (agreed with the
+advisor on 2026-09-29). As of 2026-11-20 most pieces exist, but several are
+still open pull requests:
 
-- **Jetson.** The environments and the measurement harness (latency, memory,
-  board power) are verified on `sjsujetson-36`. TensorRT is installed, the
-  first engine is built and timed, and SmolVLA baselines are recorded in the
-  sweep setting (MAXN SUPER, pinned clocks, 30 Hz), three runs each, on
-  2026-10-26.
-- **Arm.** The SO-101 leader and follower are with a teammate; bring-up on
-  our own pair is pending. `hardware/so101_lab.sh` is ready for recording demos
-  and running policies.
-- **Simulation.** The SO-101 simulator is built and tested on Windows, macOS
-  and Linux. It now has five kinds of object, multi-object scenes where the
-  instruction names a colour or a kind, real-arm sensor, actuation and camera
-  noise, and an overhead camera1. Two expert datasets are on Hugging Face (see
-  [Setup](#setup)). An ACT policy trained on the first one as an end-to-end
-  check succeeds in 6/20 episodes without noise, 5/20 at real noise and 2/20 at
-  twice that (records in `results/`); it is undertrained, so these check the
-  pipeline rather than measure the policy. SmolVLA is next, on the RTX 4090.
+| Baseline piece | State |
+| --- | --- |
+| Measurement harness (latency, memory, power, clocks) | Done, on `main` |
+| SmolVLA on the Jetson | Timed in the sweep setting (MAXN SUPER, pinned clocks, 30 Hz) on `main`. With live cameras, async inference holds 30 Hz ([#13](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/13), open) |
+| Hy-VLA at FP16 on the workstation | RoboTwin, 5 tasks × 100 episodes: 473/500, 94.6% ([#20](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/20)); timing ([#18](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/18)). Open |
+| Hy-VLA on the Jetson | **The gap.** The model split works; the ONNX export does not yet ([#22](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/22)). The engine builder ([#19](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/19)) and the INT4 check ([#15](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/15)) wait on it |
+| Simulation with the Jetson in the loop | Websocket link from RoboTwin to the Jetson ([#17](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/17), open); no runs yet |
+| SO-101 simulator | Five kinds of object, scenes where the instruction picks one by colour or kind, real-arm noise, two public datasets (see [Setup](#setup)) ([#11](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/11), open). An ACT policy, as a pipeline check, succeeds in 6/20, 5/20 and 2/20 episodes at no, real and heavy noise; it is undertrained. SmolVLA is not trained yet |
+| Real arm | Our own kit is calibrated; teleop works and the first demos are recorded ([#21](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/21)). The safety layer is written ([#14](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/14)) but its E-8 arm test has not run, so no autonomous run yet |
+
+### What the baseline must fix for 295B
+
+Quantization, TensorRT, resolution and chunk-length results in 295B count only
+against a frozen reference. By the end of 295A:
+
+1. **Reference setup, written down:** model checkpoints, the RoboTwin task and
+   seed list, the SO-101 task and seeds, and the sweep setting.
+2. **One baseline table**, a row per model and machine: chunk latency p50 and
+   p99, sustained control rate, peak board memory, board power, success in
+   RoboTwin and the SO-101 simulator, and success on the real arm.
+3. **Success versus latency:** SmolVLA in the SO-101 simulator at the latencies
+   the Jetson measured, sync and async. This is the project's title claim.
 
 ### Next steps
 
-In order; each says what it needs and what it produces.
+In order to the end of the term; each says what it needs and what it produces.
 
-1. **Train SmolVLA on the sim dataset** (RTX 4090). Run the command under
+**This week**
+
+1. **Merge the open pull requests.** Order matters: #16 before #20, #12 before
+   #13; then #18, #14, #11, #21, #15, #19, #17.
+2. **Freeze the reference setup** (point 1 above) in `configs/`.
+3. **Train SmolVLA on the sim dataset** (RTX 4090). Run the command under
    [Shared datasets](sim/so101_sim/README.md#shared-datasets), on
-   `so101_sim_multi_object_noisy`; it downloads the data by id. Upload `checkpoints/last/pretrained_model` to Hugging Face as a
-   model repo and add it to that section with the commit it was trained at.
-2. **Evaluate ACT across latencies** (any laptop). `python -m so101_sim eval`
-   on `act_sim` with `--camera1 front --latency-ms 0,250,500,750,1000,1250`,
-   sync and async, 50 episodes each. Its zero-latency noise runs are done.
-3. **Evaluate SmolVLA at the Jetson's latency.** The same sweep with
-   `--objects all --scene mixed --noise none,real`, plus one run with
-   `--latency-from` the pinned SmolVLA record in `results/`. This is the
-   first success-versus-latency curve for the report.
-4. **First session on our own arm** (whoever has the follower). Things only the
-   arm can settle, all listed in
+   `so101_sim_multi_object_noisy`; it downloads the data by id. Upload
+   `checkpoints/last/pretrained_model` to Hugging Face as a model repo and add
+   it to that section with the commit it was trained at.
+4. **Run the E-8 safety bench test** on our arm with `hardware/safety_test.py`
+   (#14). Nothing autonomous runs on the arm before it passes.
+
+**Next week**
+
+5. **Hy-VLA on the Jetson** (critical path). Get the ONNX export working (#22),
+   build the engine with #19, and record latency, memory and power in the sweep
+   setting. If FP16 does not fit in 8 GB, record that, and build INT8 or INT4.
+6. **SmolVLA success versus latency in the SO-101 simulator.**
+   `python -m so101_sim eval` with `--objects all --scene mixed --noise none,real
+   --latency-ms 0,250,500,750,1000,1250`, sync and async, 50 episodes each,
+   plus one run with `--latency-from` the pinned SmolVLA record in `results/`.
+   ACT gets the same sweep with `--camera1 front` as a cross-check.
+7. **First autonomous run on our arm**, after E-8 passes: SmolVLA fine-tuned on
+   the recorded demos, through `so101_safe_follower`, with success counted
+   separately from teleop. Before it, the arm-only checks in
    [Matching the real arm](sim/so101_sim/README.md#matching-the-real-arm):
-   - calibrate the follower and leader with `lerobot-calibrate`;
-   - put the follower in a few poses and compare its readings with the
-     simulator's joint readout; write a joint map if any joint is mirrored or
-     offset;
-   - measure the overhead camera (position and the point it looks at, in
-     metres from the arm base) for `--camera1-pos` and `--camera1-target`;
-   - check the noise estimates: backlash (reverse a joint by small steps) and
-     camera delay (film a moving joint against its readings);
-   - record a few joint trajectories so the simulator's servo gains can be
-     fitted to our servos;
-   - try the simulator's *Real follower* mirror once, slowly.
-5. **More language grounding in the simulator.** Picking by colour and by kind
-   is done. Next: target places (several boxes, or "left of"), so the
-   instruction also changes where the object goes. Needs a change to the
-   scene, the expert and randomization in `sim/so101_sim/`.
+   compare joint readings with the simulator's, measure the overhead camera for
+   `--camera1-pos` and `--camera1-target`, check the backlash and camera delay
+   estimates, and record a few trajectories to fit the servo gains.
+
+**Last stretch**
+
+8. **RoboTwin with the Jetson in the loop** over #17, with the engine from
+   step 5, on the frozen tasks and seeds.
+9. **295A report** around the baseline table and the success-versus-latency
+   curve.
+
+**If the Hy-VLA export does not land this term:** the 295A baseline is SmolVLA
+end to end on the Jetson (timing, simulated and real success) plus Hy-VLA at
+FP16 on the workstation (94.6%). Getting Hy-VLA onto the board becomes the first
+295B result.
+
+**Later, in 295B:** more language grounding in the SO-101 simulator. Picking by
+colour and by kind is done; next is target places (several boxes, or "left
+of"), so the instruction also changes where the object goes.
 
 See the [2026-09-29 advisor update](docs/reports/2026-09-29-advisor-update.md)
 for the earlier state.
