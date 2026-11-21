@@ -1,0 +1,110 @@
+{
+  "kind": "trt_backbone_int8_chain",
+  "timestamp": "2026-11-21T08:06:24.815102+00:00",
+  "model": "Hy-VLA backbone, 3 cameras x 6 frames at 224 px, 64 task tokens, 240 prefix tokens",
+  "export": "W8A8 INT8 (export/quantize_int8.py, max calibration on 2 cases). Vision tower qkv, attn.proj and mlp.fc1 now INT8. Vision mlp.fc2, the merger, embeddings and language layers 0 and 1 stay FP16. Same split as the 4-engine record, only part 1 changes.",
+  "parts": {
+    "p1v": "vision (partly INT8), embeddings, layers 0-7 with 0 and 1 in FP16",
+    "p2": "layers 8-15",
+    "p3": "layers 16-23",
+    "p4": "layers 24-31"
+  },
+  "quantize_exclude": [
+    "model.layers.0.",
+    "model.layers.1.",
+    "merger",
+    "mlp.fc2"
+  ],
+  "ort_cosine_case00_vs_fp32": {
+    "all_vision_int8": {
+      "k": 0.96573,
+      "v": 0.93299
+    },
+    "fc2_fp16": {
+      "k": 0.97468,
+      "v": 0.94956
+    },
+    "merger_fp16": {
+      "k": 0.98002,
+      "v": 0.95731
+    },
+    "merger_and_fc2_fp16": {
+      "k": 0.99208,
+      "v": 0.98146
+    },
+    "merger_fc2_and_attn_proj_fp16": {
+      "k": 0.99177,
+      "v": 0.98109
+    }
+  },
+  "build": {
+    "tensorrt": "10.3.0",
+    "flags": "--int8 --fp16",
+    "cgroup_memory_high_mib": 1500,
+    "build_s": {
+      "p1v": 2221
+    }
+  },
+  "gpu_median_ms_trtexec": {
+    "p1x": 473.845,
+    "p1v": 362.864
+  },
+  "chain_p1v": {
+    "engines": [
+      {
+        "file": "hyvla-backbone-w8-p1v.engine",
+        "mib": 2016.9381217956543,
+        "device_mib": 98.99267578125
+      },
+      {
+        "file": "hyvla-backbone-w8-p2.engine",
+        "mib": 751.1154365539551,
+        "device_mib": 35.18359375
+      },
+      {
+        "file": "hyvla-backbone-w8-p3.engine",
+        "mib": 751.0301170349121,
+        "device_mib": 35.18359375
+      },
+      {
+        "file": "hyvla-backbone-w8-p4.engine",
+        "mib": 662.0632438659668,
+        "device_mib": 45.1328125
+      }
+    ],
+    "ram_available_mib": {
+      "before": 5932.87890625,
+      "after_load": 1539.7421875
+    },
+    "case00/k_vs_fp32": {
+      "worst_layer_max_diff": 0.8538441761802547,
+      "worst_layer": 31,
+      "cosine": 0.9919388145556779,
+      "mae": 0.10246467878410735
+    },
+    "case00/v_vs_fp32": {
+      "worst_layer_max_diff": 0.5677881294965698,
+      "worst_layer": 31,
+      "cosine": 0.9814111106060391,
+      "mae": 0.01592060963582657
+    },
+    "case01/k_vs_fp32": {
+      "worst_layer_max_diff": 0.39022944583313673,
+      "worst_layer": 31,
+      "cosine": 0.992366691240589,
+      "mae": 0.10173460984908006
+    },
+    "case01/v_vs_fp32": {
+      "worst_layer_max_diff": 0.362968742554775,
+      "worst_layer": 26,
+      "cosine": 0.9827555153644364,
+      "mae": 0.015626247518962556
+    },
+    "latency_ms": {
+      "p50": 433.7875310011441,
+      "max": 434.996083000442,
+      "iters": 20
+    }
+  },
+  "notes": "Clocks not pinned. The 2 test cases are also the calibration cases. Part 1 is 111 ms faster on the GPU. The whole backbone goes from 549 ms (p1x) to 434 ms."
+}
