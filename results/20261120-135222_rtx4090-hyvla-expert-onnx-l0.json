@@ -1,0 +1,55 @@
+{
+  "kind": "hyvla_onnx_export",
+  "graph": "expert",
+  "precision": "fp32",
+  "export_s": 41.80270266532898,
+  "nodes": 2929,
+  "size_mb": 1493.226166,
+  "op_types": {
+    "Gather": 64,
+    "Gemm": 1,
+    "Unsqueeze": 73,
+    "Cast": 68,
+    "Mul": 484,
+    "Sin": 2,
+    "Cos": 2,
+    "Concat": 133,
+    "MatMul": 293,
+    "Add": 262,
+    "Expand": 66,
+    "Sigmoid": 33,
+    "ReduceSum": 1,
+    "Sub": 1,
+    "Transpose": 193,
+    "Pow": 129,
+    "ReduceMean": 129,
+    "Sqrt": 129,
+    "Reciprocal": 129,
+    "Reshape": 352,
+    "Slice": 129,
+    "Neg": 64,
+    "Split": 64,
+    "Identity": 64,
+    "Where": 32,
+    "Softmax": 32
+  },
+  "onnx_inputs": [
+    "state",
+    "prefix_pad_mask",
+    "k",
+    "v",
+    "x_t",
+    "t"
+  ],
+  "patched_vs_original_max_diff": 0.009579237550497055,
+  "l0": {
+    "cases": 8,
+    "max_rel_diff": 0.0004611835756804794,
+    "limit": 0.01,
+    "pass": true
+  },
+  "git": {
+    "commit": "e25cde961b8f7392caecdea7ffa803cf9e052911",
+    "dirty": false
+  }
+}
