@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SO-101 simulator</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo">SO-101</span>
+    <span class="title">simulator</span>
+    <span class="task" id="task">…</span>
+  </div>
+  <div class="chips">
+    <span class="chip" id="chip-mode">keyboard</span>
+    <span class="chip" id="chip-time">0.0 s</span>
+    <span class="chip" id="chip-fps">– Hz</span>
+    <span class="chip" id="chip-rec" hidden>● REC</span>
+    <span class="chip ok" id="chip-success" hidden>cube in box</span>
+    <button class="ghost" id="btn-quit" title="Stop the simulator and close the dataset">Quit</button>
+  </div>
+</header>
+
+<main>
+  <section class="stage">
+    <div class="view-wrap" id="view-wrap" tabindex="0" title="Drag to orbit, scroll to zoom">
+      <img id="view" src="/stream/view" alt="3D view" draggable="false">
+      <div class="view-hint">drag to orbit · scroll to zoom · <a href="#" id="view-reset">reset view</a></div>
+      <div class="paused-badge" id="paused-badge" hidden>paused</div>
+    </div>
+    <div class="cams">
+      <figure><img src="/stream/camera1" alt="camera1"><figcaption>camera1 · front</figcaption></figure>
+      <figure><img src="/stream/camera2" alt="camera2"><figcaption>camera2 · wrist</figcaption></figure>
+      <figure class="readout">
+        <table id="joints">
+          <thead><tr><th>joint</th><th>state</th><th>action</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <figcaption>LeRobot units: degrees, gripper 0–100</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <aside>
+    <div class="panel">
+      <h2>Control</h2>
+      <div class="seg" id="modes">
+        <button data-mode="keyboard" class="on">Keyboard</button>
+        <button data-mode="sliders">Sliders</button>
+        <button data-mode="leader">Leader arm</button>
+        <button data-mode="expert">Expert</button>
+        <button data-mode="policy">Policy</button>
+      </div>
+
+      <div class="sub" data-for="keyboard">
+        <div class="keys">
+          <div><kbd>W</kbd><kbd>S</kbd> forward / back</div>
+          <div><kbd>A</kbd><kbd>D</kbd> left / right</div>
+          <div><kbd>R</kbd><kbd>F</kbd> up / down</div>
+          <div><kbd>T</kbd><kbd>G</kbd> tilt jaws up / down</div>
+          <div><kbd>Q</kbd><kbd>E</kbd> roll wrist</div>
+          <div><kbd>Space</kbd> open / close gripper</div>
+          <div><kbd>Shift</kbd> hold for fine moves</div>
+        </div>
+        <p class="hint" id="kb-readout"></p>
+      </div>
+
+      <div class="sub" data-for="sliders" hidden>
+        <div id="sliders"></div>
+      </div>
+
+      <div class="sub" data-for="leader" hidden>
+        <label>Serial port <input id="leader-port" placeholder="COM3 · /dev/tty.usbmodem… · /dev/ttyACM1"></label>
+        <label>Leader id <input id="leader-id" placeholder="my_leader"></label>
+        <button id="leader-go">Connect and drive</button>
+        <p class="hint">Calibrate the leader on this computer once first:<br>
+          <code>lerobot-calibrate --teleop.type=so101_leader --teleop.port=PORT --teleop.id=ID</code></p>
+      </div>
+
+      <div class="sub" data-for="expert" hidden>
+        <p class="hint">The scripted expert reads the true cube and box positions and does the task.
+          Switch to it again, or press <kbd>N</kbd>, to replay on a new layout.</p>
+        <button id="expert-go">Run expert on this scene</button>
+      </div>
+
+      <div class="sub" data-for="policy" hidden>
+        <label>Checkpoint <input id="policy-path" placeholder="…/checkpoints/last/pretrained_model, or expert"></label>
+        <div class="row">
+          <label>Latency (ms) <input id="policy-latency" type="number" min="0" step="10" value="0"></label>
+          <label>Execution
+            <select id="policy-mode"><option value="async">async</option><option value="sync">sync</option></select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Threshold <input id="policy-threshold" type="number" min="0" max="1" step="0.05" value="0.5"></label>
+          <label>Denoise steps <input id="policy-steps" type="number" min="1" step="1" placeholder="checkpoint"></label>
+        </div>
+        <button id="policy-go">Load and run</button>
+        <p class="hint" id="policy-readout">Latency is the Jetson's chunk time, injected in simulated time.
+          Use p50 from a harness record in <code>results/</code>.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Real follower</h2>
+      <p class="hint">Mirror the simulated arm on a real SO-101 follower: whatever drives the
+        simulator drives it too, at most 3° per step.</p>
+      <label>Serial port <input id="follower-port" placeholder="COM4 · /dev/tty.usbmodem… · /dev/ttyACM0"></label>
+      <label>Follower id <input id="follower-id" placeholder="my_follower"></label>
+      <button id="follower-go">Connect and mirror</button>
+      <p class="hint" id="follower-readout">Calibrate it on this computer once first:<br>
+        <code>lerobot-calibrate --robot.type=so101_follower --robot.port=PORT --robot.id=ID</code><br>
+        Clear the space around it. Disconnecting turns its torque off, so it goes limp.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Scene</h2>
+      <div class="row">
+        <button id="btn-new" title="N">New scene <kbd>N</kbd></button>
+        <button id="btn-pause">Pause</button>
+      </div>
+      <div class="row">
+        <label>Seed <input id="seed" type="number" step="1"></label>
+        <button id="btn-seed">Load seed</button>
+      </div>
+      <label>Randomization
+        <select id="randomize">
+          <option value="none">none: same layout every time</option>
+          <option value="light">light: cube and box positions</option>
+          <option value="full">full: also colours, light, camera, mass</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="panel">
+      <h2>Record</h2>
+      <p class="warn" id="no-lerobot" hidden>LeRobot is not installed in this environment, so recording is off.
+        Run the launcher again or <code>pip install "lerobot[feetech]&gt;=0.4.4"</code>.</p>
+      <label>Dataset name <input id="ds-name" placeholder="sim_cube_box"></label>
+      <label>Task <input id="ds-task"></label>
+      <button id="ds-open" class="ghost">Use this dataset</button>
+      <p class="hint" id="ds-readout"></p>
+      <div class="row">
+        <button id="btn-record" class="rec" title="Enter">● Record episode</button>
+      </div>
+      <div class="row">
+        <button id="btn-save" title="→">Save <kbd>→</kbd></button>
+        <button id="btn-discard" title="←">Discard <kbd>←</kbd></button>
+      </div>
+      <div class="bar"><div id="ep-bar"></div></div>
+      <p class="hint" id="ep-readout">Recording starts from a fresh scene. It stops and saves itself at the
+        time limit, like <code>lerobot-record</code>.</p>
+      <h3>Expert demos</h3>
+      <div class="row">
+        <label>Count <input id="batch-n" type="number" min="1" value="20"></label>
+        <label class="check"><input id="fast" type="checkbox"> as fast as possible</label>
+      </div>
+      <div class="row">
+        <button id="batch-go">Record expert demos</button>
+        <button id="batch-stop" class="ghost">Stop</button>
+      </div>
+      <p class="hint" id="batch-readout"></p>
+    </div>
+
+    <div class="panel log">
+      <h2>Log</h2>
+      <pre id="log"></pre>
+    </div>
+  </aside>
+</main>
+<div class="gone" id="gone" hidden>The simulator has stopped. You can close this tab.</div>
+<script src="/static/app.js"></script>
+</body>
+</html>
