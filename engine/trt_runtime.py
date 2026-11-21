@@ -6,7 +6,8 @@ The classes follow the engine builder design spec (Table 3):
 - EngineCache: the cache key and the engine files in build/engines/.
 - EngineBuilder: parses one ONNX graph and builds an engine on the board.
 - TrtEngine: loads one engine after a memory check and runs it on a stream.
-- HyVlaEnginePolicy: two engines and the Euler loop. The loop stays in
+- EngineChain: several engines that run as one graph (the backbone parts).
+- HyVlaEnginePolicy: the backbone and the expert, and the Euler loop. The loop stays in
   Python, so the number of steps can change without a new build (TR-6).
 
 Engines are always built on the board (TR-1) and never need the network (TR-8).
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import mmap
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -24,7 +26,7 @@ import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ENGINE_DIR = REPO_ROOT / "build" / "engines"
-BUILDER_VERSION = 1  # bump when the build settings below change
+BUILDER_VERSION = 2  # bump when the build settings below change (2: int8 with --int8 --fp16)
 
 NP_DTYPES = {"float16": np.float16, "float32": np.float32, "int64": np.int64, "int32": np.int32,
              "bool": np.bool_, "int8": np.int8}
@@ -89,6 +91,10 @@ class HandoffPackage:
     def onnx_path(self, name: str) -> Path:
         return self.root / self.graph(name)["file"]
 
+    def parts(self, name: str) -> list[str]:
+        """The graphs that make up `name`. The real backbone has several parts, the test one has one."""
+        return list(self.graph(name).get("parts", [name]))
+
     def precision(self, name: str) -> str:
         return self.manifest["precision"][name]
 
@@ -137,10 +143,12 @@ class EngineBuilder:
 
         logger = trt.Logger(trt.Logger.VERBOSE if self.verbose else trt.Logger.WARNING)
         builder = trt.Builder(logger)
-        # Q/DQ graphs (int8 or int4 weights) are built strongly typed: the graph
-        # itself says the precision of every tensor. FP16 graphs use the fp16 flag.
-        quantized = precision != "fp16"
-        flags = 1 << int(trt.NetworkDefinitionCreationFlag.STRONGLY_TYPED) if quantized else 0
+        # INT4-weight Q/DQ graphs are built strongly typed: the graph itself says
+        # the precision of every tensor. INT8 Q/DQ graphs use the int8 and fp16
+        # flags, like trtexec --int8 --fp16. Then the layers between the Q/DQ
+        # pairs (and the layers kept out of INT8) run in FP16, not FP32.
+        strongly_typed = precision == "int4_weight"
+        flags = 1 << int(trt.NetworkDefinitionCreationFlag.STRONGLY_TYPED) if strongly_typed else 0
         network = builder.create_network(flags)
         parser = trt.OnnxParser(network, logger)
         if not parser.parse_from_file(str(onnx_path)):
@@ -148,8 +156,10 @@ class EngineBuilder:
             raise RuntimeError(f"[FAIL] TensorRT could not parse {onnx_path.name}:\n{errors}")
         config = builder.create_builder_config()
         config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, self.workspace_mib << 20)
-        if not quantized:
+        if not strongly_typed:
             config.set_flag(trt.BuilderFlag.FP16)
+        if precision == "int8":
+            config.set_flag(trt.BuilderFlag.INT8)
         timing_path = engine_path.parent / "timing.cache"
         cache = config.create_timing_cache(timing_path.read_bytes() if timing_path.exists() else b"")
         config.set_timing_cache(cache, ignore_mismatch=True)
@@ -179,12 +189,16 @@ class TrtEngine:
         self.torch = torch
         size_mib = engine_path.stat().st_size / 2**20
         free = mem_available_mib()
-        # The file bytes and the engine both sit in the shared RAM for a moment.
-        if free < 2 * size_mib + min_free_mib:
-            raise MemoryError(f"[FAIL] {engine_path.name} needs about {2 * size_mib + min_free_mib:.0f} MiB, "
+        # The file is memory-mapped, so its bytes stay in the page cache, which the
+        # kernel can free. Only the engine itself needs new RAM.
+        if free < size_mib + min_free_mib:
+            raise MemoryError(f"[FAIL] {engine_path.name} needs about {size_mib + min_free_mib:.0f} MiB, "
                               f"only {free:.0f} MiB available")
         self.runtime = trt.Runtime(trt.Logger(trt.Logger.WARNING))
-        self.engine = self.runtime.deserialize_cuda_engine(engine_path.read_bytes())
+        with open(engine_path, "rb") as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+            self.engine = self.runtime.deserialize_cuda_engine(mm)
+        if self.engine is None:
+            raise RuntimeError(f"[FAIL] TensorRT could not load {engine_path.name}")
         self.context = self.engine.create_execution_context()
         self.stream = torch.cuda.Stream()
         self.inputs, self.outputs, self.buffers = [], [], {}
@@ -214,6 +228,28 @@ class TrtEngine:
                 raise RuntimeError("TensorRT execution failed")
         self.stream.synchronize()
         return {name: self.buffers[name] for name in self.outputs}
+
+
+class EngineChain:
+    """Engines that run one after the other as one graph.
+
+    Every output goes into a pool of tensors by name. Each engine takes its
+    inputs from the pool, so a later part can read a tensor from any earlier
+    part (export/split_backbone.py keeps the names). It has the same call as
+    TrtEngine.
+    """
+
+    def __init__(self, engines: list[TrtEngine], inputs: list[str], outputs: list[str]):
+        self.engines, self.inputs, self.outputs = engines, list(inputs), list(outputs)
+        self.torch = engines[0].torch
+        self.size_mib = sum(e.size_mib for e in engines)
+        self.device_mib = sum(e.device_mib for e in engines)
+
+    def __call__(self, **feeds):
+        pool = dict(feeds)
+        for e in self.engines:
+            pool.update(e(**{n: pool[n] for n in e.inputs}))
+        return {n: pool[n] for n in self.outputs}
 
 
 class HyVlaEnginePolicy:
