@@ -10,6 +10,7 @@
 #   bash hardware/so101_lab.sh preview [DEVICE]         # live view of one camera, to aim it (default CAM1)
 #   bash hardware/so101_lab.sh record NAME [EPISODES]   # teleop demos with cameras, saved on the board
 #   bash hardware/so101_lab.sh policy NAME [POLICY]     # SmolVLA drives the follower for one episode
+#   bash hardware/so101_lab.sh rest-pose                # save the follower's rest pose in its safety config
 #
 # Settings are environment variables, so the script itself never needs editing:
 #
@@ -33,6 +34,10 @@
 #   TASK           the instruction, the same for every demo and for the policy
 #   EPISODE_S      seconds per episode (default 20), RESET_S between them (default 10)
 #   MAX_STEP       largest joint move per step when a policy drives, in degrees (default 3)
+#   SAFETY         safety config of the follower (default configs/safety/FOLLOWER_ID.yaml).
+#                  A policy drives the arm only through the safety layer, the robot type
+#                  so101_safe_follower. MAX_STEP overrides its max_step_deg. Install the layer
+#                  once: pip install -e hardware/lerobot_robot_so101_safe (in the CUDA venv)
 #   RESUME=1       add episodes to an existing dataset instead of refusing the NAME
 #   STEPS          denoising steps for the policy (default: the checkpoint's, 10). On this board
 #                  each step costs about 90 ms, and the arm pauses while a chunk is computed,
@@ -90,6 +95,7 @@ RESET_S="${RESET_S:-10}"
 MAX_STEP="${MAX_STEP:-3}"
 STEPS="${STEPS:-}"
 DATA="$HOME/.cache/huggingface/lerobot/local"
+SAFETY="${SAFETY:-$REPO/configs/safety/$FOLLOWER_ID.yaml}"
 
 say() { printf '%s\n' "$*"; }
 die() { say "$*"; exit 1; }
@@ -274,20 +280,34 @@ PYEOF
     policy="${3:-lerobot/smolvla_base}"
     fresh "$name"
     can_open "$FOLLOWER_PORT" || exit 1
+    [ -f "$SAFETY" ] || die "No safety config $SAFETY. Set SAFETY, or copy one in configs/safety/."
+    "$BIN/python" -c "import lerobot_robot_so101_safe" 2>/dev/null \
+      || die "The safety layer is not installed: $BIN/pip install -e $REPO/hardware/lerobot_robot_so101_safe"
     say "Policy $policy drives the follower for ${EPISODE_S}s: \"$TASK\""
+    say "Safety layer: $SAFETY. Pass the E-8 bench test (hardware/safety_test.py) on this arm first."
     say "Joints are capped at ${MAX_STEP} degrees per step. Loading takes about 15 s."
     say "Clear the table around the arm. To stop it at once, unplug the follower's power supply."
     limp_warning
     read -r -p "Press Enter to start, Ctrl-C to cancel: "
-    "$BIN/lerobot-record" "${follower[@]}" "$(cameras)" \
-      --robot.max_relative_target="$MAX_STEP" \
+    "$BIN/lerobot-record" --robot.type=so101_safe_follower --robot.port="$FOLLOWER_PORT" \
+      --robot.id="$FOLLOWER_ID" --robot.safety_config="$SAFETY" --robot.max_step_deg="$MAX_STEP" \
+      --robot.log_dir="$REPO/logs/safety" --robot.run_name="$name" "$(cameras)" \
       --policy.path="$policy" --policy.device=cuda ${STEPS:+--policy.num_steps="$STEPS"} \
       --dataset.repo_id="local/$name" --dataset.single_task="$TASK" --dataset.fps="$FPS" \
       --dataset.num_episodes=1 --dataset.episode_time_s="$EPISODE_S" --dataset.reset_time_s=5 \
       --dataset.push_to_hub=false --play_sounds=false
     ;;
+  rest-pose)
+    can_open "$FOLLOWER_PORT" || exit 1
+    [ -f "$SAFETY" ] || die "No safety config $SAFETY."
+    say "Put the follower by hand in its rest pose: folded and resting, so it can lose torque safely."
+    say "The torque must be off (stop teleop first). This only reads the joints."
+    read -r -p "Press Enter to read the pose, Ctrl-C to cancel: "
+    "$BIN/python" -m lerobot_robot_so101_safe.rest_pose --port "$FOLLOWER_PORT" --id "$FOLLOWER_ID" \
+      --config "$SAFETY" 2>&1 | quiet
+    ;;
   *)
-    sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac
