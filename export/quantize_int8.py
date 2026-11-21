@@ -34,17 +34,63 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from quantize_int4 import DataWriter, load_array  # noqa: E402
 
 
-def plan_weights(m, inits, users, min_size):
-    """MatMul/Gemm nodes with a 2-D weight: weight name -> (node, output-channel axis)."""
-    plan = {}
+def find_users(m):
+    users: dict[str, list] = {}
     for n in m.graph.node:
-        if n.op_type not in ("MatMul", "Gemm") or len(n.input) < 2 or n.input[1] not in inits:
+        for x in n.input:
+            users.setdefault(x, []).append(n)
+    return users
+
+
+def fold_transposes(m, inits, users) -> set[str]:
+    """Weight -> Transpose -> MatMul becomes weight.T -> MatMul.
+
+    The exporter writes nn.Linear in the vision tower this way. The weight is
+    transposed when it is written, so the names in the returned set need a.T.
+    """
+    flip = set()
+    for name, t in inits.items():
+        us = users.get(name, [])
+        if len(t.dims) != 2 or not us:
             continue
-        w = inits[n.input[1]]
-        if len(w.dims) != 2 or len(users.get(n.input[1], [])) != 1 or w.dims[0] * w.dims[1] < min_size:
+        ok = True
+        for u in us:
+            perm = [list(a.ints) for a in u.attribute if a.name == "perm"]
+            if u.op_type != "Transpose" or (perm and perm[0] != [1, 0]):
+                ok = False
+                break
+            if not all(v.op_type == "MatMul" and v.input[1] == u.output[0] for v in users.get(u.output[0], [])):
+                ok = False
+                break
+        if not ok:
             continue
-        trans_b = n.op_type == "Gemm" and any(a.name == "transB" and a.i == 1 for a in n.attribute)
-        plan[n.input[1]] = (n, 0 if trans_b else 1)
+        for u in us:
+            for v in users.get(u.output[0], []):
+                v.input[1] = name
+            m.graph.node.remove(u)
+        flip.add(name)
+    return flip
+
+
+def plan_weights(m, inits, users, min_size):
+    """MatMul/Gemm with a 2-D weight: weight name -> (nodes, output-channel axis).
+
+    One weight can feed more than one MatMul (the vision tower runs once per camera).
+    """
+    plan = {}
+    for name, w in inits.items():
+        us = users.get(name, [])
+        if len(w.dims) != 2 or not us or w.dims[0] * w.dims[1] < min_size:
+            continue
+        axes = set()
+        for n in us:
+            if n.op_type not in ("MatMul", "Gemm") or len(n.input) < 2 or n.input[1] != name:
+                break
+            trans_b = n.op_type == "Gemm" and any(a.name == "transB" and a.i == 1 for a in n.attribute)
+            axes.add(0 if trans_b else 1)
+        else:
+            if len(axes) == 1:
+                plan[name] = (us, axes.pop())
     return plan
 
 
@@ -86,10 +132,8 @@ def main() -> int:
     base = args.onnx.resolve().parent
     m = onnx.load(str(args.onnx), load_external_data=False)
     inits = {t.name: t for t in m.graph.initializer}
-    users: dict[str, list] = {}
-    for n in m.graph.node:
-        for x in n.input:
-            users.setdefault(x, []).append(n)
+    flip = fold_transposes(m, inits, find_users(m))
+    users = find_users(m)
     plan = plan_weights(m, inits, users, args.min_size)
     for name in [n for n in plan if any(x in n for x in args.exclude)]:
         del plan[name]
@@ -97,11 +141,11 @@ def main() -> int:
     # stored in FP16 with a Cast back to FP32, as in quantize_int4.py.
     halves = {name for name, t in inits.items() if name not in plan and t.data_type == TensorProto.FLOAT
               and int(np.prod(t.dims or [1])) >= args.min_size}
-    acts = sorted({n.input[0] for n, _ in plan.values()})
+    acts = sorted({n.input[0] for ns, _ in plan.values() for n in ns})
     calib = dict(np.load(args.calib))
     cases = sorted({k.split("/")[0] for k in calib})
     amax = calibrate(args.onnx, acts, calib, cases)
-    print(f"{len(plan)} weights to INT8, {len(acts)} activations calibrated on {len(cases)} cases", flush=True)
+    print(f"{len(flip)} transposes folded, {len(plan)} weights to INT8, {len(acts)} activations calibrated on {len(cases)} cases", flush=True)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     writer = DataWriter(args.out.with_suffix(".onnx.data"))
@@ -110,6 +154,10 @@ def main() -> int:
     for t in list(m.graph.initializer):
         a = load_array(t, base)
         before += a.nbytes
+        if t.name in flip:
+            a = np.ascontiguousarray(a.T)
+            del t.dims[:]
+            t.dims.extend(a.shape)
         if t.name in plan:
             _, axis = plan[t.name]
             w = a.astype(np.float32)
@@ -155,9 +203,10 @@ def main() -> int:
         q, dq = x + "_q", x + "_dq"
         new_nodes += [helper.make_node("QuantizeLinear", [x, sn, zn], [q], name=x + "_quant"),
                       helper.make_node("DequantizeLinear", [q, sn, zn], [dq], name=x + "_dequant")]
-        for n, _ in plan.values():
-            if n.input[0] == x:
-                n.input[0] = dq
+        for ns, _ in plan.values():
+            for n in ns:
+                if n.input[0] == x:
+                    n.input[0] = dq
 
     m.graph.initializer.extend(new_inits)
     nodes = list(m.graph.node)
