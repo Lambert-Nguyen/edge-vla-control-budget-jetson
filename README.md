@@ -297,6 +297,19 @@ against a frozen reference. By the end of 295A:
 
 In order to the end of the term; each says what it needs and what it produces.
 
+**Milestone M4 (Dec 13):** Hy-VLA runs on the Jetson with first latency,
+memory, power and simulation numbers (Workbook II, Table 14). Latency and
+memory are measured; to close it:
+
+- [ ] Chunk timing with pinned clocks, and board power (step 4).
+- [ ] Peak memory with the policy loop running, against E-2's 6.5 GiB (step 4).
+- [ ] E-3 for Hy-VLA: p99 chunk time and the late-chunk count over at least
+      1,000 steps, not only the p50.
+- [ ] INT8 recalibrated on RoboTwin demos and checked on held-out cases (step 4).
+- [ ] At least one RoboTwin task run from the Jetson over #17 (step 7), the
+      first E-4 number.
+- [ ] One config file per sweep point in `configs/` (E-6, with step 2).
+
 **This week**
 
 1. **Use the team arm's joint map in the simulator.** The table calibration
@@ -314,8 +327,12 @@ In order to the end of the term; each says what it needs and what it produces.
 4. **First Hy-VLA sweep points on the Jetson** (critical path). Time the
    `hyvla-int8-v1` chunk with pinned clocks and add board power. Calibrate INT8
    on RoboTwin demos (seeds from 0, kept apart from the evaluation seeds), make
-   a new package, and check accuracy on held-out cases. Free RAM is tight
-   (439 MiB at the lowest), so record the peak with the policy loop running.
+   a new package, and check accuracy on held-out cases. Memory is over
+   budget: E-2 allows at most 6.5 GiB at peak, but available RAM fell from
+   6,498 MiB to 439 MiB during the package run, so about 7.0 GiB was in use
+   before any camera or control loop. Record the peak with the policy loop
+   running, then either save about 0.5 GiB or agree a new E-2 target with the
+   advisor and write it down.
 
 **Next week**
 
