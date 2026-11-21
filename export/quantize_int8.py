@@ -78,6 +78,8 @@ def main() -> int:
     ap.add_argument("--calib", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--min-size", type=int, default=1 << 20)
+    ap.add_argument("--exclude", nargs="*", default=[], metavar="TEXT",
+                    help="keep weights whose name contains TEXT out of INT8 (e.g. visual)")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -89,6 +91,12 @@ def main() -> int:
         for x in n.input:
             users.setdefault(x, []).append(n)
     plan = plan_weights(m, inits, users, args.min_size)
+    for name in [n for n in plan if any(x in n for x in args.exclude)]:
+        del plan[name]
+    # Other large FP32 weights (the token embedding table, excluded weights) are
+    # stored in FP16 with a Cast back to FP32, as in quantize_int4.py.
+    halves = {name for name, t in inits.items() if name not in plan and t.data_type == TensorProto.FLOAT
+              and int(np.prod(t.dims or [1])) >= args.min_size}
     acts = sorted({n.input[0] for n, _ in plan.values()})
     calib = dict(np.load(args.calib))
     cases = sorted({k.split("/")[0] for k in calib})
@@ -119,6 +127,15 @@ def main() -> int:
             new_nodes.append(helper.make_node("DequantizeLinear", [qt.name, st.name, zt.name], [t.name],
                                               name=t.name + "_dq", axis=axis))
             m.graph.initializer.remove(t)
+        elif t.name in halves:
+            h = numpy_helper.from_array(a.astype(np.float16), t.name + "_fp16")
+            raw = h.raw_data
+            writer.put(h, raw)
+            after += len(raw)
+            new_inits.append(h)
+            new_nodes.append(helper.make_node("Cast", [h.name], [t.name], name=t.name + "_cast",
+                                              to=TensorProto.FLOAT))
+            m.graph.initializer.remove(t)
         else:
             raw = numpy_helper.from_array(a, t.name).raw_data
             if len(raw) < 64 * 1024:
@@ -146,7 +163,8 @@ def main() -> int:
     nodes = list(m.graph.node)
     del m.graph.node[:]
     # Weight DQ nodes first. Activation Q/DQ right after the node that makes x.
-    wdq = [n for n in new_nodes if n.op_type == "DequantizeLinear" and n.input[0].endswith("_int8")]
+    wdq = [n for n in new_nodes if n.op_type == "Cast"
+           or (n.op_type == "DequantizeLinear" and n.input[0].endswith("_int8"))]
     act = {n.input[0]: [] for n in new_nodes if n.op_type == "QuantizeLinear"}
     for n in new_nodes:
         if n.op_type == "QuantizeLinear":
