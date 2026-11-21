@@ -2,7 +2,7 @@
 
 This note groups our recent work by the tasks and deadlines in Workbook II (Table 13 sprints and Table 14 milestones). Some work is not in the workbook. Each of those items is listed as a follow-up under the workbook task it comes from. The open tasks at the end are only the ones for James and Lam.
 
-Each item names its PR. The details are in the PR and its records in `results/`. All timings on the Jetson were taken with the clocks not pinned, so they are first numbers, not sweep results.
+Each item names its PR. The details are in the PR and its records in `results/`. The Hy-VLA timings on the Jetson (PR #19) were taken with the clocks not pinned, so they are first numbers, not sweep results. The SmolVLA live loop (PR #13) and the INT4 probe (PR #15) also have runs with pinned clocks.
 
 ## S5 and M3, due Nov 15
 
@@ -33,7 +33,7 @@ These S5 tasks were finished on Nov 19 and 20, a few days after the Nov 15 date.
 
 Status: done.
 
-- PR #15 probes INT4-weight layers on TensorRT 10.3. Single layers build, and the engine is 3.8 times smaller. At 512 tokens it is about 12% slower than FP16.
+- PR #15 probes INT4-weight layers on TensorRT 10.3. Single layers build, and the engine is 3.8 times smaller. At 512 tokens with pinned clocks it is about 30% slower than FP16 (20.0 ms against 15.4 ms of GPU time).
 - PR #19 adds the engine builder and runtime in `engine/`. We tested it first with a fake handoff package.
 - The action expert runs as an FP16 engine. It is within 0.624% of the reference and takes 18.1 ms per step.
 - The builder runs a backbone made of several parts as one chain. INT8 graphs build with the int8 and fp16 flags, like `trtexec --int8 --fp16`.
@@ -44,7 +44,7 @@ Status: done.
 
 Status: the export is done. Calibration has started, and it finishes in S7.
 
-- In draft PR #22, we split Hy-VLA into a backbone and an action expert. The split matches the full model exactly.
+- In PR #22, we split Hy-VLA into a backbone and an action expert. The split matches the full model exactly.
 - The action expert exports to ONNX. It needed 8 patches for the export only. Two of them fix wrong TensorRT results: the `rotate_half` fusion and an FP16 overflow in RMSNorm.
 - The backbone exports to ONNX too. It returns K and V for 32 layers and the prefix mask.
 - INT4. TensorRT 10.3 on the Orin unpacks INT4 weights to FP16 in GPU memory on every call. The INT4 backbone needs 5.3 GB of scratch memory, so it cannot build or run on the board. INT4 was also the slowest. One chunk of 8 layers took 88 ms in INT4, 33 ms in FP16 and 23 ms in INT8. So we dropped INT4 for the backbone.
