@@ -38,6 +38,9 @@ from pathlib import Path
 import torch
 from torch import nn
 
+ROPE_TABLE = 1024  # rotary positions in the lookup table (prefix 240 + 41 expert tokens)
+_ROPE_TABLES: dict = {}  # filled in the reference run, read during the export
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wrappers import BackboneWrapper, ExpertStep  # noqa: E402
 
@@ -83,11 +86,27 @@ def _wrap(angle):
 
 
 def _plain_rope_forward(self, x, position_ids):
-    """HunYuanVLMoTRotaryEmbedding.forward without @dynamic_rope_update."""
-    inv = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1).to(x.device)
-    freqs = _wrap((inv @ position_ids[:, None, :].float()).transpose(1, 2))
-    emb = torch.cat((freqs, freqs), dim=-1)
-    return (emb.cos() * self.attention_scaling).to(x.dtype), (emb.sin() * self.attention_scaling).to(x.dtype)
+    """HunYuanVLMoTRotaryEmbedding.forward as a table lookup.
+
+    The positions are whole numbers, so cos and sin come from a table made once in
+    float64 (positions 0 to ROPE_TABLE - 1) and are looked up by position. This
+    drops the data-dependent @dynamic_rope_update check, and the engine never
+    computes position x frequency itself: with --fp16, TensorRT did that in FP16
+    (step 0.25 at position 240), and K of layer 0 was 5% off.
+    """
+    import numpy as np
+
+    key = (id(self), x.device, x.dtype)
+    cache = _ROPE_TABLES
+    if key not in cache:
+        inv = self.inv_freq.detach().double().cpu().numpy()
+        ang = np.arange(ROPE_TABLE, dtype=np.float64)[:, None] * inv[None, :]
+        ang = np.concatenate([ang, ang], axis=-1)
+        cos = torch.tensor(np.cos(ang) * self.attention_scaling, dtype=x.dtype, device=x.device)
+        sin = torch.tensor(np.sin(ang) * self.attention_scaling, dtype=x.dtype, device=x.device)
+        cache[key] = (cos, sin)
+    cos, sin = cache[key]
+    return cos[position_ids], sin[position_ids]
 
 
 def _sinusoidal_fp32(time, dimension: int, min_period: float, max_period: float, device):
