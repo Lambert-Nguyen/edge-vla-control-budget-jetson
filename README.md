@@ -264,18 +264,22 @@ made them records the repo id and the commit, as
 
 295A builds the baseline that 295B improves on: a VLA policy running on the
 Jetson, the measurement harness, and evaluation in simulation (agreed with the
-advisor on 2026-09-29). As of 2026-11-20 most pieces exist, but several are
+advisor on 2026-09-29). As of 2026-11-21 most pieces exist, but several are
 still open pull requests:
 
 | Baseline piece | State |
 | --- | --- |
 | Measurement harness (latency, memory, power, clocks) | Done, on `main` |
-| SmolVLA on the Jetson | Timed in the sweep setting (MAXN SUPER, pinned clocks, 30 Hz) on `main`. With live cameras, async inference holds 30 Hz ([#13](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/13), open) |
+| SmolVLA on the Jetson | Timed in the sweep setting on `main`. With live cameras and pinned clocks ([#13](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/13), open): 10 denoising steps take 916 ms per chunk and async still runs dry; 5 steps take 546 ms and hold 30 Hz |
 | Hy-VLA at FP16 on the workstation | RoboTwin, 5 tasks × 100 episodes: 473/500, 94.6% ([#20](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/20)); timing ([#18](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/18)). Open |
-| Hy-VLA on the Jetson | **The gap.** The model split works; the ONNX export does not yet ([#22](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/22)). The engine builder ([#19](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/19)) and the INT4 check ([#15](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/15)) wait on it |
-| Simulation with the Jetson in the loop | Websocket link from RoboTwin to the Jetson ([#17](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/17), open); no runs yet |
-| SO-101 simulator | Five kinds of object, scenes where the instruction picks one by colour or kind, real-arm noise, two public datasets (see [Setup](#setup)) ([#11](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/11), open). An ACT policy, as a pipeline check, succeeds in 6/20, 5/20 and 2/20 episodes at no, real and heavy noise; it is undertrained. SmolVLA is not trained yet |
-| Real arm | Our own kit is calibrated; teleop works and the first demos are recorded ([#21](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/21)). The safety layer is written ([#14](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/14)) but its E-8 arm test has not run, so no autonomous run yet |
+| Hy-VLA on the Jetson | **Backbone runs; full chunk not yet.** FP16 does not fit: TensorRT 10.3 asks for 5.3 GB of scratch to build the backbone as one engine, with about 5.8 GB free. As four W8A8 INT8 engines, with language layers 0–1 and the vision fc2 and merger in FP16, it matches FP32 at cosine 0.99 (K) and 0.98 (V), takes 434 ms, and leaves 1.5 GB of board RAM ([#19](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/19), [#22](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/22), open). Clocks not pinned, calibration on the 2 test cases, action-expert steps not timed. INT4 with pinned clocks is no faster than FP16 but 3.8× smaller ([#15](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/15)) |
+| Simulation with the Jetson in the loop | Websocket link from RoboTwin to the Jetson, frames scaled to 224 px, Wi-Fi round trip p50 29 ms, p99 103 ms ([#17](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/17), open); no policy runs yet |
+| SO-101 simulator | Five kinds of object, scenes where the instruction picks one by colour or kind, real-arm noise, two public datasets (see [Setup](#setup)) ([#11](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/11), open). An ACT policy, as a pipeline check, succeeds in about a third of episodes. Across chunk latency (50 episodes a point), async holds up to 750 ms and falls beyond 833 ms, its budget with 25 of 50 actions left; sync declines slowly from 0 ms. SmolVLA is not trained yet |
+| Real arm | Our own kit is calibrated; teleop works and the first demos are recorded ([#21](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/21)). The safety layer passes all nine E-8 bench cases on the team follower, with a table-height check calibrated from 13 jaw-tip touches ([#14](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/14), open). No autonomous run yet |
+
+The sim and the board agree on the async budget: ACT in the simulator falls
+off beyond 833 ms, and SmolVLA at 10 steps (916 ms) runs dry on the Jetson
+while 5 steps (546 ms) do not.
 
 ### What the baseline must fix for 295B
 
@@ -297,45 +301,48 @@ In order to the end of the term; each says what it needs and what it produces.
 **This week**
 
 1. **Merge the open pull requests.** Order matters: #16 before #20, #12 before
-   #13; then #18, #14, #11, #21, #15, #19, #17.
+   #13; then #18, #14, #11, #21, #15, #19, #17, and #22 once its export runs.
 2. **Freeze the reference setup** (point 1 above) in `configs/`.
 3. **Train SmolVLA on the sim dataset** (RTX 4090). Run the command under
    [Shared datasets](sim/so101_sim/README.md#shared-datasets), on
    `so101_sim_multi_object_noisy`; it downloads the data by id. Upload
    `checkpoints/last/pretrained_model` to Hugging Face as a model repo and add
    it to that section with the commit it was trained at.
-4. **Run the E-8 safety bench test** on our arm with `hardware/safety_test.py`
-   (#14). Nothing autonomous runs on the arm before it passes.
+4. **Finish the Hy-VLA chunk on the Jetson** (critical path). Export and build
+   the action expert, time a full chunk (backbone plus its denoising steps)
+   with pinned clocks, and record latency, peak memory and power. Calibrate
+   INT8 on episodes kept apart from the test cases, then check accuracy on the
+   test cases.
 
 **Next week**
 
-5. **Hy-VLA on the Jetson** (critical path). Get the ONNX export working (#22),
-   build the engine with #19, and record latency, memory and power in the sweep
-   setting. If FP16 does not fit in 8 GB, record that, and build INT8 or INT4.
-6. **SmolVLA success versus latency in the SO-101 simulator.**
+5. **SmolVLA success versus latency in the SO-101 simulator.**
    `python -m so101_sim eval` with `--objects all --scene mixed --noise none,real
    --latency-ms 0,250,500,750,1000,1250`, sync and async, 50 episodes each,
-   plus one run with `--latency-from` the pinned SmolVLA record in `results/`.
-   ACT gets the same sweep with `--camera1 front` as a cross-check.
-7. **First autonomous run on our arm**, after E-8 passes: SmolVLA fine-tuned on
-   the recorded demos, through `so101_safe_follower`, with success counted
-   separately from teleop. Before it, the arm-only checks in
+   plus `--latency-from` the pinned live-loop records for 5 and 10 steps. The
+   ACT sweep at commit `77255d7` is the cross-check.
+6. **First autonomous run on our arm**, now that E-8 passes: SmolVLA fine-tuned
+   on the recorded demos, 5 denoising steps, async, through
+   `so101_safe_follower`, with success counted separately from teleop. Before
+   it, the arm-only checks in
    [Matching the real arm](sim/so101_sim/README.md#matching-the-real-arm):
    compare joint readings with the simulator's, measure the overhead camera for
    `--camera1-pos` and `--camera1-target`, check the backlash and camera delay
    estimates, and record a few trajectories to fit the servo gains.
+7. **RoboTwin with the Jetson in the loop** over #17, with the INT8 engines
+   from step 4, on the frozen tasks and seeds, compared episode by episode with
+   the FP16 workstation run in #20.
 
 **Last stretch**
 
-8. **RoboTwin with the Jetson in the loop** over #17, with the engine from
-   step 5, on the frozen tasks and seeds.
-9. **295A report** around the baseline table and the success-versus-latency
-   curve.
+8. **295A report** around the baseline table, the success-versus-latency
+   curve, and the finding that FP16 Hy-VLA does not fit the board and INT8 in
+   four engines does.
 
-**If the Hy-VLA export does not land this term:** the 295A baseline is SmolVLA
-end to end on the Jetson (timing, simulated and real success) plus Hy-VLA at
-FP16 on the workstation (94.6%). Getting Hy-VLA onto the board becomes the first
-295B result.
+**If the full Hy-VLA chunk does not run on the board this term:** the 295A
+baseline is SmolVLA end to end on the Jetson (timing, simulated and real
+success), Hy-VLA at FP16 on the workstation (94.6%), and the Hy-VLA backbone in
+INT8 on the board. The full chunk becomes the first 295B result.
 
 **Later, in 295B:** more language grounding in the SO-101 simulator. Picking by
 colour and by kind is done; next is target places (several boxes, or "left
