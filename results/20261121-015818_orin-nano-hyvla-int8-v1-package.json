@@ -1,0 +1,205 @@
+{
+  "kind": "hyvla_engines",
+  "timestamp": "2026-11-21T09:57:55.145211+00:00",
+  "package": {
+    "name": "hyvla-int8-v1",
+    "path": "build/handoff/hyvla-int8-v1",
+    "precision": {
+      "backbone_p1": "int8",
+      "backbone_p2": "int8",
+      "backbone_p3": "int8",
+      "backbone_p4": "int8",
+      "backbone": "int8",
+      "expert": "fp16"
+    },
+    "sha256": {
+      "backbone_p1.onnx": "00fe07273795b97f92d428c23c4e14c49064ff5f5e56c035d24e81e4189d7753",
+      "backbone_p1.onnx.data": "7f9752935f061f427d3d540c6fcebcf7da157afc7b74730c0b5ff8334085f032",
+      "backbone_p2.onnx": "95904c00f012784f14a1ff633eb0262c421634ab3f89ccb0119ea578953cc9ac",
+      "backbone_p2.onnx.data": "900e100fbfeba70937a139eebf02c5beda52c140f8b7a2d81aa9a384b376d67b",
+      "backbone_p3.onnx": "8ff9ff604e0cba7e1d47143743dfe5c319adeb99b2eaece4ee3c46c80c39e90b",
+      "backbone_p3.onnx.data": "db9271ba94fb0de301528dd1ec8f5778df207830a2b0595188471a2cf512b57b",
+      "backbone_p4.onnx": "018dfda31e298d911ca1a2ee945576bf82f4aa625a52005ba1f88d2e8102abd8",
+      "backbone_p4.onnx.data": "5bcffdc83164d38e366b33d2989f26d33500a009abe87b64728764c3f5fd67ff",
+      "expert.onnx": "151b7d859785431fa7e0247980397a1c61a0eb55132faf3e8ddac5f453558bc0",
+      "expert.onnx.data": "62b39e0d19589f3fc59eaf7a3b5907c9b5fd1cccb020a0ae9f0a8a1fdc1db32f",
+      "reference.npz": "0bb20f147322aae9f5fd51d8619c65c9d7a2ac7bf6ae832107cb2464ddaa5561"
+    },
+    "export_commit": "1aa4996"
+  },
+  "tensorrt": "10.3.0",
+  "steps": 10,
+  "engines": {
+    "backbone_p1": {
+      "onnx": "backbone_p1.onnx",
+      "precision": "int8",
+      "trt": "10.3.0",
+      "build_s": 906.6831391730011,
+      "engine_mib": 2016.8973655700684,
+      "settings": {
+        "workspace_mib": 1024
+      },
+      "built_at": "2026-11-21T00:58:10",
+      "package": "hyvla-int8-v1",
+      "graph": "backbone_p1",
+      "cache_key": "e19cfdb7b8dd9aed",
+      "cache_hit": true,
+      "device_mib": 98.99267578125
+    },
+    "backbone_p2": {
+      "onnx": "backbone_p2.onnx",
+      "precision": "int8",
+      "trt": "10.3.0",
+      "build_s": 153.14148091599782,
+      "engine_mib": 751.1157112121582,
+      "settings": {
+        "workspace_mib": 1024
+      },
+      "built_at": "2026-11-21T01:01:07",
+      "package": "hyvla-int8-v1",
+      "graph": "backbone_p2",
+      "cache_key": "d282d454470651c9",
+      "cache_hit": true,
+      "device_mib": 35.18359375
+    },
+    "backbone_p3": {
+      "onnx": "backbone_p3.onnx",
+      "precision": "int8",
+      "trt": "10.3.0",
+      "build_s": 149.9847473500049,
+      "engine_mib": 751.1158256530762,
+      "settings": {
+        "workspace_mib": 1024
+      },
+      "built_at": "2026-11-21T01:03:57",
+      "package": "hyvla-int8-v1",
+      "graph": "backbone_p3",
+      "cache_key": "59825fa4e33a5a75",
+      "cache_hit": true,
+      "device_mib": 35.18359375
+    },
+    "backbone_p4": {
+      "onnx": "backbone_p4.onnx",
+      "precision": "int8",
+      "trt": "10.3.0",
+      "build_s": 137.72288823399867,
+      "engine_mib": 662.0555076599121,
+      "settings": {
+        "workspace_mib": 1024
+      },
+      "built_at": "2026-11-21T01:06:36",
+      "package": "hyvla-int8-v1",
+      "graph": "backbone_p4",
+      "cache_key": "72de3d8a81c378dd",
+      "cache_hit": true,
+      "device_mib": 45.1328125
+    },
+    "expert": {
+      "onnx": "expert.onnx",
+      "precision": "fp16",
+      "trt": "10.3.0",
+      "build_s": 528.371817676998,
+      "engine_mib": 713.9311180114746,
+      "settings": {
+        "workspace_mib": 1024
+      },
+      "built_at": "2026-11-21T01:15:53",
+      "package": "hyvla-int8-v1",
+      "graph": "expert",
+      "cache_key": "f93bcc0a048723be",
+      "cache_hit": true,
+      "device_mib": 29.3427734375
+    }
+  },
+  "check": {
+    "worst_rel_err": {
+      "k": 0.2719126343727112,
+      "v": 0.36684852838516235,
+      "velocity_t1": 0.04627270624041557,
+      "actions": 0.23110170662403107
+    },
+    "cosine": {
+      "k": 0.9964066851934117,
+      "v": 0.9900633720695996,
+      "velocity_t1": 0.9998571604937306,
+      "actions": 0.9967298559993416
+    },
+    "limit": 0.02,
+    "rule": "cosine >= 0.99 to the reference, and FP32 gap <= 0.002 (worst gap +0.0008)",
+    "pass": true
+  },
+  "vs_fp32": {
+    "case00": {
+      "k": 0.992108455092958,
+      "v": 0.9813735946903305,
+      "actions": 0.9928768585349674,
+      "actions_max_diff": 0.16044677793979645,
+      "reference_k": 0.9920755247485842,
+      "reference_v": 0.9814631730128645,
+      "reference_actions": 0.9846491111867192
+    },
+    "case01": {
+      "k": 0.9924287010110076,
+      "v": 0.98301693028601,
+      "actions": 0.994992306470307,
+      "actions_max_diff": 0.15459434688091278,
+      "reference_k": 0.9926081980457838,
+      "reference_v": 0.9832003075988566,
+      "reference_actions": 0.9957850413249878
+    }
+  },
+  "latency": {
+    "backbone": {
+      "p50_ms": 430.66403200646164,
+      "p99_ms": 432.6498829977936,
+      "mean_ms": 430.88592382031493
+    },
+    "expert_step": {
+      "p50_ms": 18.085023999447003,
+      "p99_ms": 18.21248900523642,
+      "mean_ms": 18.084404559631366
+    },
+    "chunk": {
+      "p50_ms": 614.2392439942341,
+      "p99_ms": 615.5868619971443,
+      "mean_ms": 614.2798100199434
+    }
+  },
+  "ram_available_mib": {
+    "start": 6498.20703125,
+    "lowest": 438.94921875
+  },
+  "board": {
+    "host": "sjsujetson-36",
+    "machine": "aarch64",
+    "model": "NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super",
+    "l4t": "# R36 (release), REVISION: 4.3, GCID: 38968081, BOARD: generic, EABI: aarch64, DATE: Wed Jan  8 01:49:37 UTC 2025",
+    "nvpmodel": "NV Power Mode: MAXN_SUPER\n2",
+    "nvpmodel_mode": "MAXN_SUPER",
+    "nvpmodel_id": 2,
+    "jetson_clocks_gpu": null,
+    "clocks": {
+      "source": "sysfs",
+      "gpu": {
+        "min_hz": 306000000,
+        "max_hz": 1020000000,
+        "cur_hz": 1020000000,
+        "pinned": false
+      },
+      "cpu0": {
+        "min_khz": 729600,
+        "max_khz": 1728000,
+        "cur_khz": 1420800,
+        "pinned": false,
+        "governor": "schedutil"
+      },
+      "jetson_clocks_active": false
+    },
+    "python": "3.10.12"
+  },
+  "git": {
+    "commit": "4c2ddf72ab149496f3aa5af31b99767da5807fe0",
+    "branch": "feat/trt-engine-builder",
+    "dirty": true
+  }
+}
