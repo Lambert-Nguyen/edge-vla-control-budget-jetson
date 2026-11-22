@@ -25,10 +25,14 @@ Team-only meetings are informal discussions held in person, by text and in the t
 | 2026-10-22 | Team / lab | In person, SJSU lab | Leader and follower checks, calibration, teleoperation and cameras worked with the Jetson; arm joint values read on the board. SmolVLA bring-up results traced to PR #6 | [notes](2026-10-22-team.md) |
 | 2026-10-28 | Team | Not recorded | TensorRT test engine and pinned SmolVLA baselines; MAXN SUPER/30 Hz settings; Workbook II and three design specs define the handoff and S5 work | [notes](2026-10-28-team.md) |
 | 2026-11-04 | Team | Not recorded | Own SO-ARM101 Pro kit received and calibrated; James has the camera. Follow-ups cover live-camera/async integration, the kit's safety profile and the Hy-VLA/RoboTwin baseline | [notes](2026-11-04-team.md) |
+| 2026-11-11 | Team | Not recorded | Draft, not yet confirmed. Checkpoint for the November 4 items: none was in the repository yet, so M3 was at risk. Items carried forward to November 15 | [notes](2026-11-11-team.md) |
+| 2026-11-18 | Team | Not recorded | Draft, not yet confirmed. SO-101 MuJoCo simulator opened as PR #11. M3 missed on November 15; S5 carry-over and S6 tasks assigned | [notes](2026-11-18-team.md) |
 
 The October 14 and October 22 records were reconstructed on October 24 using the team's recap, repository evidence and *Project Workbook - Workbook I* (dated October 1), especially Chapters 3–5 and 8–9. Workbook targets are plans, not proof of completion. Proposed follow-up deadlines are labeled in each note. The October 22 lab session replaced that week's Wednesday meeting; it is not an advisor meeting.
 
 The October 28 and November 4 notes were reconstructed on November 7 using the confirmed Wednesday team schedule, the sources below and the team's confirmation that its own arm arrived and was calibrated and James has the camera. Meeting times and modes were not supplied. Completed work is distinguished from planned specifications; unreported software/test outcomes remain unconfirmed. No advisor meeting is inferred from a team meeting or document date.
+
+The November 11 and November 18 notes are drafts, reconstructed on November 21 from the Wednesday schedule and dated repository history. The team has not yet confirmed that these meetings were held, so their discussion sections are left open. Work counts as done only with a commit or PR date; work done but not yet committed does not show up.
 
 ## Sources for the October 28 and November 4 notes
 
@@ -37,6 +41,13 @@ The October 28 and November 4 notes were reconstructed on November 7 using the c
 - Lam Nguyen, *Hy-VLA Export and Quantization on the Workstation*, design specification v1.1, October 28: two-graph export, precision/memory budget, L0–L3 checks and the manifest/reference handoff to James.
 - Vi Thi Tuong Nguyen, *Safety Layer for the SO-101 Follower Arm*, design specification v1.1, October 28: completed lab checks/step cap, planned CHECK/RUN/HOLD/STOP/PARK states, watchdog, profiles and E-8 tests.
 - Repository evidence: [PR #8](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/8), [October 26 JSON records](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/tree/fd8dc20cd5628ad91cdc30e7a65aacc16ced26f7/results), [documented sweep settings](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/blob/c709cff2bf5088f7454804f2ec118e92e37984a4/README.md#sweep-setting), and [PR #9](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/9).
+
+## Sources for the November 11 and November 18 notes
+
+- The [November 4 action items](2026-11-04-team.md#4-action-items) and *Project Workbook - Workbook II* (October 29), Table 13 (S5 and S6 tasks) and Table 14 (M3).
+- Commit author dates, November 5–18: only `4d8f1fc` (November 7, meeting index) and the simulator commits of November 16–17 ([PR #11](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/11)).
+- Pull request dates: [PR #10](https://github.com/Lambert-Nguyen/edge-vla-control-budget-jetson/pull/10) opened November 16, PR #11 on November 17, and PRs #12–#22 on November 19–20.
+- The [November 21 progress report](../docs/reports/2026-11-21-workbook-progress.md), which says the S5 tasks were finished November 19–20.
 
 ## Advisor correspondence (email)
 
