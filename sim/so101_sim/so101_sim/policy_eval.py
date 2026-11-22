@@ -39,7 +39,8 @@ import numpy as np
 
 from .config import ROBOT_TYPE, SimConfig
 from .env import Obs, SO101Env
-from .expert import ScriptedExpert
+from .expert import ScriptedExpert, expert_rng
+from .units import JointMap
 
 SUCCESS_HOLD_S = 0.5          # the cube must stay in the box this long
 
@@ -109,7 +110,7 @@ class ExpertChunkPolicy(ChunkPolicy):
         self.cursor = 0
 
     def reset(self, env: SO101Env) -> None:
-        expert = ScriptedExpert(env, np.random.default_rng(self.seed))
+        expert = ScriptedExpert(env, expert_rng(self.seed))
         n = expert.total_steps
         actions = [expert.act() for _ in range(n)]
         self.plan = np.asarray(actions, dtype=np.float32)
@@ -325,13 +326,14 @@ def git_commit(path: Path) -> str | None:
 
 def evaluate(policy_spec: str, cfg: SimConfig, episodes: int, latency: LatencyModel, mode: str = "async",
              threshold: float = 0.5, seed: int = 100_000, device: str = "auto", num_steps: int | None = None,
-             n_action_steps: int | None = None, out: str | Path | None = None, log=print) -> dict:
+             n_action_steps: int | None = None, out: str | Path | None = None,
+             joint_map: JointMap | None = None, log=print) -> dict:
     """Evaluate a policy over `episodes` seeded layouts and write a JSON record.
 
     Seeds start at 100000 by default so evaluation layouts never repeat the
     layouts that `generate` (seeds from 0) put into a training set.
     """
-    env = SO101Env(cfg, render=True)
+    env = SO101Env(cfg, joint_map=joint_map, render=True)
     policy = load_policy(policy_spec, device=device, num_steps=num_steps, n_action_steps=n_action_steps)
     results = []
     t0 = time.perf_counter()
@@ -360,7 +362,7 @@ def evaluate(policy_spec: str, cfg: SimConfig, episodes: int, latency: LatencyMo
                    "camera1_pos": list(cfg.camera1_pos), "camera1_target": list(cfg.camera1_target),
                    "objects": list(cfg.objects), "scene": cfg.scene, "noise": cfg.noise,
                    "n_action_steps": policy.n_action_steps, "num_steps": num_steps,
-                   "latency": asdict(latency)},
+                   "latency": asdict(latency), "joint_map": asdict(env.jmap)},
         "success": {"k": k, "n": len(results), "rate": k / max(len(results), 1), "wilson95": [lo, hi]},
         "staleness_ms": {"mean": float(stale.mean()), "p50": float(np.percentile(stale, 50)),
                          "p95": float(np.percentile(stale, 95)), "max": float(stale.max())},

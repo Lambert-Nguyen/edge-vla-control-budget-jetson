@@ -1,5 +1,6 @@
 """Simulator, units, expert and latency logic. No LeRobot, no rendering."""
 import math
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -221,3 +222,51 @@ def test_follower_mirror_catches_up_slowly_then_follows_capped():
     assert m.catching_up and abs(robot.sent[-1][0] - 29.0) < 1e-9
     m.close()
     assert not robot.connected
+
+
+def test_expert_draws_do_not_follow_the_scene():
+    """The expert's speed must not be the same random number as the lighting."""
+    from so101_sim.expert import ScriptedExpert, expert_rng
+    e = SO101Env(SimConfig(randomize="full"), render=False)
+    speed, light = [], []
+    for s in range(30):
+        e.reset(seed=s, render=False)
+        speed.append(ScriptedExpert(e, expert_rng(s)).speed)
+        light.append(float(e.model.light_diffuse[0, 0]))
+    e.close()
+    assert abs(np.corrcoef(speed, light)[0, 1]) < 0.5
+
+
+TEAM_MAP = Path(__file__).resolve().parents[1] / "joint_maps" / "team_follower.json"
+
+
+def test_cli_passes_the_joint_map_to_generate_and_eval(monkeypatch):
+    import so101_sim.generate as gen
+    import so101_sim.policy_eval as pe
+    from so101_sim import cli
+    seen = {}
+
+    def fake_generate(name, episodes, cfg, **kw):
+        seen["generate"] = kw["joint_map"]
+        return {"saved": episodes}
+
+    def fake_evaluate(policy, cfg, episodes, latency, **kw):
+        seen["eval"] = kw["joint_map"]
+        return {}
+
+    monkeypatch.setattr(gen, "generate", fake_generate)
+    monkeypatch.setattr(pe, "evaluate", fake_evaluate)
+    assert cli.main(["generate", "--name", "x", "--episodes", "1", "--joint-map", str(TEAM_MAP)]) == 0
+    assert cli.main(["eval", "--policy", "expert", "--episodes", "1", "--no-save",
+                     "--joint-map", str(TEAM_MAP)]) == 0
+    team = JointMap.load(TEAM_MAP)
+    assert seen["generate"] == team and seen["eval"] == team
+
+
+def test_eval_runs_with_the_team_joint_map():
+    team = JointMap.load(TEAM_MAP)
+    from so101_sim.policy_eval import evaluate
+    rec = evaluate("expert", SimConfig(randomize="light"), 2, LatencyModel.constant(0.0),
+                   joint_map=team, log=lambda *a: None)
+    assert rec["config"]["joint_map"]["offset_deg"] == team.offset_deg
+    assert rec["success"]["k"] == 2
