@@ -12,20 +12,22 @@ from __future__ import annotations
 
 import json
 import time
+from dataclasses import asdict
 from pathlib import Path
-
-import numpy as np
 
 from .config import SimConfig
 from .env import SO101Env
-from .expert import ScriptedExpert
+from .expert import ScriptedExpert, expert_rng
 from .recorder import Recorder
+from .units import JointMap
 
 
 def generate(name: str, episodes: int, cfg: SimConfig, seed: int = 0, root: str | None = None,
              resume: bool = False, overwrite: bool = False, keep_failures: bool = False,
-             tail_s: float = 0.5, max_attempts_factor: float = 2.0, log=print) -> dict:
-    env = SO101Env(cfg, render=True)
+             tail_s: float = 0.5, max_attempts_factor: float = 2.0, joint_map: JointMap | None = None,
+             log=print) -> dict:
+    env = SO101Env(cfg, joint_map=joint_map, render=True)
+    mapped = joint_map is not None and joint_map != JointMap()
     rec = Recorder(name, cfg, env.task, root=root, resume=resume, overwrite=overwrite)
     log_path = Path(rec.root) / "meta" / "so101_sim_episodes.jsonl"
     saved = attempts = 0
@@ -33,9 +35,8 @@ def generate(name: str, episodes: int, cfg: SimConfig, seed: int = 0, root: str 
     s = seed
     try:
         while saved < episodes and attempts < max(episodes * max_attempts_factor, episodes + 5):
-            rng = np.random.default_rng(s)
             obs = env.reset(seed=s)
-            expert = ScriptedExpert(env, rng)
+            expert = ScriptedExpert(env, expert_rng(s))
             n = expert.total_steps + int(tail_s * cfg.fps)
             for _ in range(n):
                 action = expert.act()
@@ -51,6 +52,8 @@ def generate(name: str, episodes: int, cfg: SimConfig, seed: int = 0, root: str 
                     entry = {"episode_index": idx, "seed": s, "success": bool(ok), "frames": n,
                              "randomize": cfg.randomize, "expert_speed": expert.speed,
                              "start": [round(float(v), 2) for v in env.jmap.to_lerobot(env.start)]}
+                    if mapped:
+                        entry["joint_map"] = asdict(env.jmap)
                     if not env.original_cube or env.noise is not None:
                         entry.update(env.episode_info())
                     f.write(json.dumps(entry) + "\n")

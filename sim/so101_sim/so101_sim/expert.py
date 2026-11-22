@@ -29,6 +29,19 @@ EXTRA_CLEARANCE = 0.003   # m, more room past the fixed jaw for objects other th
 MIN_GRASP_HEIGHT = 0.015
 
 
+# The expert draws from its own stream of the episode seed. The environment draws
+# the layout and appearance from default_rng(seed) and the object, noise and
+# colours from [seed, 1..4]. Before 2026-11-21 the expert used default_rng(seed)
+# as well, so its speed was the same random number as the first light's
+# brightness, and its heights followed the next lighting draws.
+EXPERT_STREAM = 5
+
+
+def expert_rng(seed: int) -> np.random.Generator:
+    """The expert's generator for an episode seed, independent of the scene's draws."""
+    return np.random.default_rng([int(seed), EXPERT_STREAM])
+
+
 def min_jerk(s: float) -> float:
     s = min(max(s, 0.0), 1.0)
     return s * s * s * (10 - 15 * s + 6 * s * s)
@@ -190,9 +203,8 @@ def run_expert_episode(env: SO101Env, seed: int, render: bool = False, extra_s: 
 
     The caller observes after each step through env; this keeps rendering optional.
     """
-    rng = np.random.default_rng(seed)
     obs = env.reset(seed=seed, render=render)
-    expert = ScriptedExpert(env, rng)
+    expert = ScriptedExpert(env, expert_rng(seed))
     n = expert.total_steps + int(extra_s * env.cfg.fps)
     for _ in range(n):
         action = expert.act()
@@ -200,4 +212,4 @@ def run_expert_episode(env: SO101Env, seed: int, render: bool = False, extra_s: 
         obs = env.step(action, render=render)
 
 
-__all__ = ["ScriptedExpert", "run_expert_episode", "GRIP_OPEN", "GRIP_CLOSED"]
+__all__ = ["ScriptedExpert", "expert_rng", "run_expert_episode", "GRIP_OPEN", "GRIP_CLOSED"]

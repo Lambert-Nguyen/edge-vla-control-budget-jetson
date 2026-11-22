@@ -38,7 +38,7 @@ from PIL import Image
 
 from ..config import FEATURE_NAMES, SimConfig
 from ..env import SO101Env
-from ..expert import GRIP_CLOSED, GRIP_OPEN, ScriptedExpert
+from ..expert import GRIP_CLOSED, GRIP_OPEN, ScriptedExpert, expert_rng
 from ..ik import ROLL, ArmIK
 from ..units import JointMap
 
@@ -224,7 +224,7 @@ class SimApp:
                     self.leader = LeaderArm(self.leader_port, self.leader_id)
                     self.log("leader connected")
             elif mode == "expert":
-                self.expert = ScriptedExpert(self.env, np.random.default_rng(self.seed))
+                self.expert = ScriptedExpert(self.env, expert_rng(self.seed))
                 self.expert_tail = int(0.5 * self.cfg.fps)
             elif mode == "policy":
                 self.load_policy()

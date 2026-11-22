@@ -262,6 +262,17 @@ Train new policies on `so101_sim_multi_object_noisy`: it has the camera position
 the noise and the language the real task will have. `so101_sim_cube_box` stays
 for comparison with the first runs.
 
+Both datasets come from before 2026-11-21, when the expert shared its random
+generator with the scene. In them the expert's speed (0.8 to 1.25) rises
+exactly with the first light's brightness, and its hover, carry and release
+heights follow the next lighting draws, so a policy could tie its pace to how
+bright the scene is. The camera exposure noise in `so101_sim_multi_object_noisy`
+weakens the link but does not remove it. The layouts are unchanged; datasets
+generated now give the expert its own stream of the seed. For a dataset meant
+for the real arm, also pass `--max-step-deg 3`: in `so101_sim_multi_object_noisy`,
+2.6% of frames (197 of 300 episodes) move a joint more than the safety layer's
+3° per step, mostly while carrying to the box.
+
 `lerobot-train` downloads a dataset by its id, so no copying or login is needed:
 
 ```bash
@@ -293,7 +304,10 @@ code:
 {"sign": [1, 1, 1, 1, 1], "offset_deg": [0, 0, 0, 0, 0], "gripper_closed": 0, "gripper_open": 100}
 ```
 
-then pass `--joint-map my_arm.json` to any command.
+then pass `--joint-map my_arm.json` to any command. `generate` writes the map
+into each episode's line of `meta/so101_sim_episodes.jsonl`, and `eval` into
+its record's config. Before 2026-11-21, `generate` and `eval` accepted
+`--joint-map` but ignored it; only the app and `check` used it.
 
 **The team follower's map** is in
 [`joint_maps/team_follower.json`](joint_maps/team_follower.json). It comes from

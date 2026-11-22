@@ -147,7 +147,7 @@ def cmd_generate(a) -> int:
         from dataclasses import replace
         cfg = cfg.with_(task=replace(cfg.task, instruction=a.task))
     summary = generate(a.name, a.episodes, cfg, seed=a.seed, root=a.root, resume=a.resume,
-                       overwrite=a.overwrite, keep_failures=a.keep_failures)
+                       overwrite=a.overwrite, keep_failures=a.keep_failures, joint_map=joint_map(a))
     return 0 if summary["saved"] == a.episodes else 1
 
 
@@ -169,7 +169,8 @@ def cmd_eval(a) -> int:
             out = (out_dir / f"{stamp}_sim-eval_{name}_{a.mode}_{lat.mean_ms:.0f}ms{tag}.json"
                    if not a.no_save else None)
             rec = evaluate(a.policy, cfg, a.episodes, lat, mode=a.mode, threshold=a.threshold, seed=a.seed,
-                           device=a.device, num_steps=a.num_steps, n_action_steps=a.n_action_steps, out=out)
+                           device=a.device, num_steps=a.num_steps, n_action_steps=a.n_action_steps, out=out,
+                           joint_map=joint_map(a))
             rows.append((noise, lat.mean_ms, rec))
     if len(rows) > 1:
         print("\nnoise  latency_ms  success  wilson95   wrong_object  staleness_mean_ms  stall_fraction")
