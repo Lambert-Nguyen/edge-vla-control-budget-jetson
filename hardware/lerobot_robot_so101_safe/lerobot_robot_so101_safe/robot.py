@@ -18,7 +18,7 @@ from pathlib import Path
 from lerobot.robots.so_follower import SOFollower
 
 from .config import SafeFollowerConfig
-from .rules import JOINTS, SafetyConfig, SafetyCore, State, check_voltage, park_path, soft_limits
+from .rules import JOINTS, SafetyConfig, SafetyCore, State, check_voltage, park_plan, soft_limits
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,7 @@ class SafeFollower(SOFollower):
         self._health_turn = 0
         self._log_file = None
         self._last_print: dict[str, float] = {}
+        self._last_present: dict | None = None  # the last position read from the bus
         name = config.run_name or datetime.now().strftime("%Y%m%d-%H%M%S")
         self.log_path = Path(config.log_dir) / f"{name}.jsonl"
         self.counters_path = Path(config.log_dir) / f"{name}.counters.json"
@@ -116,7 +117,8 @@ class SafeFollower(SOFollower):
         """Present position, with one retry. Caller holds bus_lock."""
         for attempt in range(2):
             try:
-                return dict(self.bus.sync_read("Present_Position"))
+                self._last_present = dict(self.bus.sync_read("Present_Position"))
+                return dict(self._last_present)
             except Exception:
                 if attempt == 0:
                     self.core.counters.bus_retries += 1
@@ -131,7 +133,13 @@ class SafeFollower(SOFollower):
             self.core.on_bus_result(present is not None)
             if present is None:
                 self._flush_events()
-                return {}
+                # Nothing was written, so the servos keep their last goal. Return
+                # that: lerobot-record stores what send_action returns as the
+                # step's action, and needs a value for every joint.
+                held = self.core.last_goal or self._last_present
+                if held is None:  # the very first read failed: nothing is known yet
+                    return {f"{j}.pos": float(action.get(f"{j}.pos", "nan")) for j in JOINTS}
+                return {f"{j}.pos": v for j, v in held.items()}
             before = self.core.state
             goal = self.core.on_action(action, present)
             if goal is not None:
@@ -199,37 +207,64 @@ class SafeFollower(SOFollower):
 
     # ---- PARK ----------------------------------------------------------------
 
-    def park(self) -> None:
-        """Move slowly to the rest pose. The caller turns the torque off after."""
+    def park(self) -> bool:
+        """Move slowly to the rest pose. True when the arm got there.
+
+        The caller turns the torque off after, but only when this returns True.
+        """
         self.core.state = State.PARK
-        self.core.log("park")
         rest = {j: float(self.safety.rest_pose_deg[j]) for j in JOINTS}
         with self.bus_lock:
             present = self._read_present()
         if present is None:
+            self.core.log("park", path=None)
             self.core.log("park_failed", reason="bus")
-            return
+            return False
+        path, kind = park_plan(present, rest, self.safety)
+        self.core.log("park", path=kind, goals=len(path))
         period = 1.0 / self.safety.control_hz
-        for goal in park_path(present, rest, self.safety.park_step_deg):
+        for goal in path:
             with self.bus_lock:
-                self._write_goal(goal)
+                for attempt in range(2):
+                    try:
+                        self._write_goal(goal)
+                        break
+                    except Exception as e:
+                        if attempt:
+                            self.core.log("park_failed", reason="bus", error=str(e))
+                            return False
+                        self.core.counters.bus_retries += 1
             time.sleep(period)
         time.sleep(0.5)  # let the servos reach the last goal
+        return True
 
     def disconnect(self) -> None:
-        if self.core is not None:
-            self._watchdog_stop.set()
-            if self._watchdog:
-                self._watchdog.join(timeout=1)
-            try:
-                self.park()
-            finally:
-                self._flush_events()
-                c = self.core.counters.as_dict()
-                self.counters_path.parent.mkdir(parents=True, exist_ok=True)
-                self.counters_path.write_text(json.dumps(c, indent=2) + "\n")
-                logger.info("safety counters: %s", json.dumps(c))
-                if self._log_file:
-                    self._log_file.close()
-                    self._log_file = None
-        super().disconnect()
+        # The port is always closed, even when PARK or the log fails. The torque
+        # goes off only when the arm reached its rest pose: turning it off
+        # anywhere else would drop the arm from where it stands.
+        parked = self.core is None  # never connected: nothing to park
+        try:
+            if self.core is not None:
+                self._watchdog_stop.set()
+                if self._watchdog:
+                    self._watchdog.join(timeout=1)
+                try:
+                    parked = self.park()
+                finally:
+                    self._flush_events()
+                    c = self.core.counters.as_dict()
+                    self.counters_path.parent.mkdir(parents=True, exist_ok=True)
+                    self.counters_path.write_text(json.dumps(c, indent=2) + "\n")
+                    logger.info("safety counters: %s", json.dumps(c))
+                    if self._log_file:
+                        self._log_file.close()
+                        self._log_file = None
+        finally:
+            if parked:
+                super().disconnect()
+            else:
+                logger.error("PARK did not finish, so the torque stays on and the arm holds its pose. "
+                             "Support the arm, then switch off its power supply.")
+                self.bus.disconnect(disable_torque=False)
+                for cam in self.cameras.values():
+                    cam.disconnect()
