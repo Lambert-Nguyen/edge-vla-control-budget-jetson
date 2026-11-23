@@ -207,8 +207,11 @@ class SafeFollower(SOFollower):
 
     # ---- PARK ----------------------------------------------------------------
 
-    def park(self) -> None:
-        """Move slowly to the rest pose. The caller turns the torque off after."""
+    def park(self) -> bool:
+        """Move slowly to the rest pose. True when the arm got there.
+
+        The caller turns the torque off after, but only when this returns True.
+        """
         self.core.state = State.PARK
         rest = {j: float(self.safety.rest_pose_deg[j]) for j in JOINTS}
         with self.bus_lock:
@@ -216,7 +219,7 @@ class SafeFollower(SOFollower):
         if present is None:
             self.core.log("park", path=None)
             self.core.log("park_failed", reason="bus")
-            return
+            return False
         path, kind = park_plan(present, rest, self.safety)
         self.core.log("park", path=kind, goals=len(path))
         period = 1.0 / self.safety.control_hz
@@ -229,21 +232,24 @@ class SafeFollower(SOFollower):
                     except Exception as e:
                         if attempt:
                             self.core.log("park_failed", reason="bus", error=str(e))
-                            return
+                            return False
                         self.core.counters.bus_retries += 1
             time.sleep(period)
         time.sleep(0.5)  # let the servos reach the last goal
+        return True
 
     def disconnect(self) -> None:
-        # The parent's disconnect turns the torque off and closes the port. It
-        # runs even when PARK or the log fails, so the port is never left open.
+        # The port is always closed, even when PARK or the log fails. The torque
+        # goes off only when the arm reached its rest pose: turning it off
+        # anywhere else would drop the arm from where it stands.
+        parked = self.core is None  # never connected: nothing to park
         try:
             if self.core is not None:
                 self._watchdog_stop.set()
                 if self._watchdog:
                     self._watchdog.join(timeout=1)
                 try:
-                    self.park()
+                    parked = self.park()
                 finally:
                     self._flush_events()
                     c = self.core.counters.as_dict()
@@ -254,4 +260,11 @@ class SafeFollower(SOFollower):
                         self._log_file.close()
                         self._log_file = None
         finally:
-            super().disconnect()
+            if parked:
+                super().disconnect()
+            else:
+                logger.error("PARK did not finish, so the torque stays on and the arm holds its pose. "
+                             "Support the arm, then switch off its power supply.")
+                self.bus.disconnect(disable_torque=False)
+                for cam in self.cameras.values():
+                    cam.disconnect()

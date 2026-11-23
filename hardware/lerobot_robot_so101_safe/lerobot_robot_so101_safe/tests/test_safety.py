@@ -381,7 +381,7 @@ def test_bus_failure_returns_the_held_goal(make_robot):
     assert r.core.counters.bus_retries == 1
 
 
-def test_disconnect_closes_the_bus_when_park_fails(make_robot):
+def test_disconnect_keeps_the_torque_on_when_park_fails(make_robot):
     r = ready(make_robot())
     r.safety.control_hz = 1000
 
@@ -393,8 +393,9 @@ def test_disconnect_closes_the_bus_when_park_fails(make_robot):
     r.log_path.parent.mkdir(parents=True, exist_ok=True)
     r._log_file = open(r.log_path, "a")
     r.disconnect()
-    # PARK gave up after a retry, logged it, and the torque still went off.
-    assert r.bus.torque_off_at_disconnect is True
+    # PARK gave up after a retry and logged it. The port closed, but the torque
+    # stayed on: turning it off part way would drop the arm.
+    assert r.bus.torque_off_at_disconnect is False
     assert r.core.counters.bus_retries == 1
     events = [json.loads(line)["event"] for line in r.log_path.read_text().splitlines()]
     assert events[-1] == "park_failed"
