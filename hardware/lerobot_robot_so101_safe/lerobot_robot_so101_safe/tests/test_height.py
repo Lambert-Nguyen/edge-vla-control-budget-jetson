@@ -108,3 +108,35 @@ def test_filter_action_runs_the_height_check():
 
 def test_height_off_by_default():
     assert SafetyConfig().height_check is False
+
+
+def test_park_lifts_the_shoulder_first_when_the_straight_path_hits_the_table():
+    from pathlib import Path
+
+    from lerobot_robot_so101_safe.rules import JOINTS, park_plan
+
+    team = Path(__file__).resolve().parents[4] / "configs" / "safety" / "team_follower.yaml"
+    cfg = SafetyConfig.load(team)
+    rest = cfg.rest_pose_deg
+    off = cfg.model_offsets_deg
+    table = cfg.table_z_m
+
+    # Wrist curled down, elbow near its limit: found by sampling start poses.
+    curled = {"shoulder_pan": -87.3, "shoulder_lift": 30.5, "elbow_flex": 57.3, "wrist_flex": 85.1,
+              "wrist_roll": 97.5, "gripper": 59.8}
+    assert lowest_z(curled, off) > table + cfg.table_margin_m  # starts above the table
+    straight, _ = park_plan(curled, rest, SafetyConfig(**{**cfg.__dict__, "height_check": False}))
+    assert min(lowest_z(g, off) for g in straight) < table  # the old path goes through it
+    path, kind = park_plan(curled, rest, cfg)
+    assert kind == "lift_first"
+    assert min(lowest_z(g, off) for g in path) > table
+    prev = curled
+    for g in path:
+        assert all(abs(g[j] - prev[j]) <= cfg.park_step_deg + 1e-9 for j in JOINTS)
+        prev = g
+    assert path[-1] == pytest.approx(rest)
+
+    # A usual pose above the cube parks the straight way, as before.
+    usual = pose(shoulder_lift=10.0, elbow_flex=20.0, wrist_flex=60.0)
+    path, kind = park_plan(usual, rest, cfg)
+    assert kind == "straight"

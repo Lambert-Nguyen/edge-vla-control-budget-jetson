@@ -361,3 +361,40 @@ def test_bus_lock(make_robot):  # 14
         r._watchdog.join()
     assert r.core.counters.holds_watchdog > 0  # the watchdog did run
     assert r.bus.overlaps == 0
+
+
+def test_bus_failure_returns_the_held_goal(make_robot):
+    # lerobot-record stores what send_action returns as the action, so a failed
+    # read must still give every joint: the goal the servos keep.
+    r = ready(make_robot())
+    first = r.send_action(act(elbow_flex=2))
+    n = len(r.bus.writes)
+
+    def broken(*a, **k):
+        raise OSError("no status packet")
+
+    r.bus.sync_read = broken
+    sent = r.send_action(act(elbow_flex=4))
+    assert set(sent) == {f"{j}.pos" for j in JOINTS}
+    assert sent == first
+    assert len(r.bus.writes) == n  # nothing new was written
+    assert r.core.counters.bus_retries == 1
+
+
+def test_disconnect_closes_the_bus_when_park_fails(make_robot):
+    r = ready(make_robot())
+    r.safety.control_hz = 1000
+
+    def broken(*a, **k):
+        raise OSError("port gone")
+
+    r.bus.sync_write = broken
+    r.bus.present = zeros() | {"shoulder_pan": 20.0}
+    r.log_path.parent.mkdir(parents=True, exist_ok=True)
+    r._log_file = open(r.log_path, "a")
+    r.disconnect()
+    # PARK gave up after a retry, logged it, and the torque still went off.
+    assert r.bus.torque_off_at_disconnect is True
+    assert r.core.counters.bus_retries == 1
+    events = [json.loads(line)["event"] for line in r.log_path.read_text().splitlines()]
+    assert events[-1] == "park_failed"

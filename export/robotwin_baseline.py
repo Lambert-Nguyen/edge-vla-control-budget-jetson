@@ -16,6 +16,9 @@ Run it on the workstation, in the RoboTwinHy conda env:
 
 It writes <out>.episodes.jsonl (one line per episode) and <out>.json (the
 summary per task, with 95% Wilson intervals). Logs go to <out>.logs/.
+It stops if <out> already has results, so a second run cannot mix its episodes
+into the first; use a new --out, or --overwrite to replace them. It also stops
+if the RoboTwin checkout is not at robotwin_commit from the task list.
 """
 
 from __future__ import annotations
@@ -57,6 +60,14 @@ def git_state() -> dict:
             "dirty": bool(g("status", "--porcelain", "--untracked-files=no"))}
 
 
+def robotwin_commit(path: Path) -> str | None:
+    try:
+        return subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], text=True,
+                                       stderr=subprocess.DEVNULL).strip()
+    except Exception:
+        return None
+
+
 def parse_episodes(log_text: str) -> list[dict]:
     """One dict per finished episode, from RoboTwin's progress lines.
 
@@ -84,19 +95,35 @@ def main() -> int:
     ap.add_argument("--tasks", type=Path, default=REPO_ROOT / "configs" / "robotwin_tasks.yaml")
     ap.add_argument("--only", nargs="*", help="run only these tasks")
     ap.add_argument("--out", required=True, type=Path, help="output path without extension")
+    ap.add_argument("--overwrite", action="store_true", help="replace the results already at --out")
+    ap.add_argument("--any-commit", action="store_true",
+                    help="run even if the RoboTwin checkout is not at the pinned commit")
     args = ap.parse_args()
 
     import yaml
 
     cfg = yaml.safe_load(args.tasks.read_text())
     tasks = args.only or cfg["tasks"]
-    logs = args.out.with_suffix(".logs")
+    # with_name, not with_suffix: a dot in the name ("v1.2") is not an extension.
+    out = lambda ext: args.out.with_name(args.out.name + ext)  # noqa: E731
+    logs, epi_path, summary_path = out(".logs"), out(".episodes.jsonl"), out(".json")
+    existing = [p for p in (epi_path, summary_path) if p.exists()]
+    if existing and not args.overwrite:
+        print(f"{existing[0]} already exists. Use a new --out, or --overwrite to replace it.")
+        return 2
+
+    pinned = str(cfg.get("robotwin_commit", ""))
+    commit = robotwin_commit(args.robotwin)
+    if pinned and not (commit or "").startswith(pinned):
+        print(f"{args.robotwin} is at {commit or 'an unknown commit'}, but {args.tasks.name} pins {pinned}.")
+        if not args.any_commit:
+            print("Check out the pinned commit, or pass --any-commit to run anyway.")
+            return 2
     logs.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, PYTHONPATH=f"{args.hyvla}:{os.environ.get('PYTHONPATH', '')}",
                PYTHONWARNINGS="ignore::UserWarning")
-    epi_path = args.out.with_suffix(".episodes.jsonl")
     summary = {}
-    with open(epi_path, "a") as epi_file:
+    with open(epi_path, "w") as epi_file:
         for task in tasks:
             cmd = [sys.executable, "-u", "script/eval_policy.py", "--config", "policy/hy_vla/deploy_policy.yml",
                    "--overrides", "--task_name", task, "--task_config", cfg["task_config"],
@@ -114,22 +141,27 @@ def main() -> int:
             epi_file.flush()
             k, n = sum(e["success"] for e in episodes), len(episodes)
             lo, hi = wilson(k, n)
+            # A crash part way leaves fewer episodes; such a task does not compare with the others.
+            complete = rc == 0 and n == cfg.get("episodes_per_task", n)
             summary[task] = {"success": k, "episodes": n, "rate": k / n if n else None,
-                             "wilson_low": lo, "wilson_high": hi, "returncode": rc, "minutes": minutes}
+                             "wilson_low": lo, "wilson_high": hi, "returncode": rc, "complete": complete,
+                             "minutes": minutes}
             print(f"[{task}] {k}/{n} = {100 * k / max(n, 1):.1f}%  (95% CI {100 * lo:.1f} to {100 * hi:.1f}), "
-                  f"{minutes:.0f} min, rc={rc}", flush=True)
+                  f"{minutes:.0f} min, rc={rc}{'' if complete else ', INCOMPLETE'}", flush=True)
 
     k = sum(s["success"] for s in summary.values())
     n = sum(s["episodes"] for s in summary.values())
     report = {"kind": "hyvla_robotwin_baseline", "timestamp": datetime.now(timezone.utc).isoformat(),
               "config": {"tasks_file": str(args.tasks), **cfg, "ckpt": args.ckpt, "robotwin": str(args.robotwin),
+                         "robotwin_head": commit,
                          "precision": "bfloat16 (released checkpoint, PyTorch)"},
               "tasks": summary, "total": {"success": k, "episodes": n, "rate": k / n if n else None,
-                                          "wilson": wilson(k, n)},
+                                          "wilson": wilson(k, n),
+                                          "complete": all(s["complete"] for s in summary.values())},
               "episodes_file": epi_path.name, "git": git_state()}
-    args.out.with_suffix(".json").write_text(json.dumps(report, indent=2) + "\n")
-    print(f"total {k}/{n} = {100 * k / max(n, 1):.1f}%. Wrote {args.out.with_suffix('.json')}")
-    return 0
+    summary_path.write_text(json.dumps(report, indent=2) + "\n")
+    print(f"total {k}/{n} = {100 * k / max(n, 1):.1f}%. Wrote {summary_path}")
+    return 0 if report["total"]["complete"] else 1
 
 
 if __name__ == "__main__":

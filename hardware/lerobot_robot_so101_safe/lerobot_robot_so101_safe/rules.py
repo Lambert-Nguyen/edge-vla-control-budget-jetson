@@ -208,6 +208,40 @@ def park_path(present: dict, rest: dict, step: float) -> list[dict]:
     return path
 
 
+def park_plan(present: dict, rest: dict, cfg: SafetyConfig) -> tuple[list[dict], str]:
+    """PARK's goals, and which path they take: "straight" or "lift_first".
+
+    PARK moves every joint at once, in a straight line in joint space. From a few
+    poses with the wrist curled down and the elbow bent (wrist_flex near 90,
+    elbow_flex near its limit) that line takes the gripper through the table on
+    the way to the rest pose. With the height check on, a straight path that goes
+    lower than the table floor, the start and the rest pose is replaced by one
+    that first moves shoulder_lift to its rest value, if that path stays higher.
+    PARK still ignores the joint limits.
+    """
+    step = cfg.park_step_deg
+    straight = park_path(present, rest, step)
+    if not cfg.height_check or not straight:
+        return straight, "straight"
+    from .kinematics import lowest_z
+
+    off = cfg.model_offsets_deg or {}
+
+    def lowest(path):
+        return min(lowest_z(g, off) for g in path)
+
+    bound = min(cfg.table_z_m + cfg.table_margin_m, lowest_z(present, off), lowest_z(rest, off))
+    low_straight = lowest(straight)
+    if low_straight >= bound - 1e-3:
+        return straight, "straight"
+    mid = dict(present)
+    mid["shoulder_lift"] = rest["shoulder_lift"]
+    staged = park_path(present, mid, step) + park_path(mid, rest, step)
+    if staged and lowest(staged) > low_straight:
+        return staged, "lift_first"
+    return straight, "straight"
+
+
 @dataclass
 class Counters:
     steps: int = 0
